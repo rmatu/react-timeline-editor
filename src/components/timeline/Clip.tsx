@@ -141,15 +141,11 @@ export const Clip = memo(function Clip({
         {/* Clip content (type-specific rendering) */}
         <ClipContent clip={clip} width={width} isSelected={isSelected} />
 
-        {/* Selection/hover overlay */}
+        {/* Selection/hover overlay - only for hover, selection uses border */}
         <div
           className={cn(
             "absolute inset-0 pointer-events-none transition-colors",
-            isSelected
-              ? "bg-blue-500/10"
-              : isHovered
-                ? "bg-white/5"
-                : "bg-transparent"
+            isHovered && !isSelected ? "bg-white/5" : "bg-transparent"
           )}
         />
 
@@ -172,13 +168,12 @@ export const Clip = memo(function Clip({
         )}
 
         {/* Clip name/label */}
-        {width > 60 && (
+        {/* Clip name/label - hide for text as it renders its own content */}
+        {width > 60 && clip.type !== "text" && (
           <div className="absolute inset-x-2 top-1 truncate text-xs font-medium text-white/80">
-            {clip.type === "text"
-              ? (clip as any).content?.slice(0, 20)
-              : clip.type === "video" || clip.type === "audio"
-                ? getFileName((clip as any).sourceUrl)
-                : clip.type}
+            {clip.type === "video" || clip.type === "audio"
+              ? getFileName((clip as any).sourceUrl)
+              : clip.type}
           </div>
         )}
 
