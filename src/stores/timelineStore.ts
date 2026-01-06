@@ -104,6 +104,8 @@ interface TimelineActions {
     newStartTime?: number,
     newSourceStartTime?: number
   ) => void;
+  splitClip: (clipId: string, splitTime: number) => boolean;
+  mergeClips: (clipIds: string[]) => boolean;
 
   // History actions
   saveToHistory: () => void;
@@ -374,6 +376,127 @@ export const useTimelineStore = create<TimelineStore>()(
             }
           }
         }),
+
+      splitClip: (clipId, splitTime) => {
+        const state = get();
+        const clip = state.clips.get(clipId);
+        if (!clip) return false;
+
+        const clipEnd = clip.startTime + clip.duration;
+        // Validate split time is within clip bounds (not at edges)
+        const minSplitTime = clip.startTime + 0.1;
+        const maxSplitTime = clipEnd - 0.1;
+        if (splitTime <= minSplitTime || splitTime >= maxSplitTime) {
+          return false;
+        }
+
+        const leftDuration = splitTime - clip.startTime;
+        const rightDuration = clipEnd - splitTime;
+
+        // Create left clip (keeps original ID for simplicity, or use new ID)
+        const leftClip: Clip = {
+          ...clip,
+          id: crypto.randomUUID(),
+          duration: leftDuration,
+        };
+
+        // Create right clip with adjusted sourceStartTime for video/audio
+        const rightClip: Clip = {
+          ...clip,
+          id: crypto.randomUUID(),
+          startTime: splitTime,
+          duration: rightDuration,
+          sourceStartTime:
+            clip.type === "video" || clip.type === "audio"
+              ? clip.sourceStartTime + leftDuration
+              : clip.sourceStartTime,
+        };
+
+        set((s) => {
+          s.clips.delete(clipId);
+          s.clips.set(leftClip.id, leftClip);
+          s.clips.set(rightClip.id, rightClip);
+          // Update selection to new clips
+          s.selectedClipIds = s.selectedClipIds.filter((id) => id !== clipId);
+          s.selectedClipIds.push(leftClip.id, rightClip.id);
+        });
+
+        return true;
+      },
+
+      mergeClips: (clipIds) => {
+        const state = get();
+        if (clipIds.length < 2) return false;
+
+        // Get all clips and validate
+        const clipsToMerge = clipIds
+          .map((id) => state.clips.get(id))
+          .filter((c): c is Clip => c !== undefined);
+
+        if (clipsToMerge.length < 2) return false;
+
+        // All must be same type and same track
+        const firstClip = clipsToMerge[0];
+        const allSameType = clipsToMerge.every(
+          (c) => c.type === firstClip.type && c.trackId === firstClip.trackId
+        );
+        if (!allSameType) return false;
+
+        // Sort by start time
+        clipsToMerge.sort((a, b) => a.startTime - b.startTime);
+
+        // Check if clips are adjacent (within 0.1s tolerance)
+        for (let i = 0; i < clipsToMerge.length - 1; i++) {
+          const currentEnd = clipsToMerge[i].startTime + clipsToMerge[i].duration;
+          const nextStart = clipsToMerge[i + 1].startTime;
+          if (Math.abs(currentEnd - nextStart) > 0.1) {
+            return false; // Not adjacent
+          }
+        }
+
+        // For video/audio, check same source and contiguous sourceStartTime
+        if (firstClip.type === "video" || firstClip.type === "audio") {
+          const firstSource = (firstClip as { sourceUrl: string }).sourceUrl;
+          const allSameSource = clipsToMerge.every(
+            (c) => (c as { sourceUrl: string }).sourceUrl === firstSource
+          );
+          if (!allSameSource) return false;
+
+          // Check contiguous sourceStartTime
+          for (let i = 0; i < clipsToMerge.length - 1; i++) {
+            const currentSourceEnd =
+              clipsToMerge[i].sourceStartTime + clipsToMerge[i].duration;
+            const nextSourceStart = clipsToMerge[i + 1].sourceStartTime;
+            if (Math.abs(currentSourceEnd - nextSourceStart) > 0.1) {
+              return false; // Not contiguous source
+            }
+          }
+        }
+
+        // Create merged clip
+        const mergedClip: Clip = {
+          ...firstClip,
+          id: crypto.randomUUID(),
+          startTime: clipsToMerge[0].startTime,
+          duration: clipsToMerge.reduce((sum, c) => sum + c.duration, 0),
+          sourceStartTime: clipsToMerge[0].sourceStartTime,
+        };
+
+        set((s) => {
+          // Remove original clips
+          for (const clipId of clipIds) {
+            s.clips.delete(clipId);
+          }
+          s.clips.set(mergedClip.id, mergedClip);
+          // Update selection
+          s.selectedClipIds = s.selectedClipIds.filter(
+            (id) => !clipIds.includes(id)
+          );
+          s.selectedClipIds.push(mergedClip.id);
+        });
+
+        return true;
+      },
 
       // History actions
       saveToHistory: () =>

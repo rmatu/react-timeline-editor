@@ -62,6 +62,8 @@ export const KEYBOARD_SHORTCUTS = {
   NUDGE_RIGHT: "ArrowRight",
   ZOOM_IN: "=",
   ZOOM_OUT: "-",
+  SPLIT: "s",
+  MERGE: "m",
 } as const;
 
 // Colors for track types

@@ -113,6 +113,22 @@ export function Timeline({
     onZoomIn: () => setZoom(zoomLevel * 1.2),
     onZoomOut: () => setZoom(zoomLevel / 1.2),
     onDeselectAll: () => useTimelineStore.getState().deselectAll(),
+    onSplit: () => {
+      const store = useTimelineStore.getState();
+      if (store.selectedClipIds.length > 0) {
+        store.saveToHistory();
+        for (const clipId of store.selectedClipIds) {
+          store.splitClip(clipId, currentTime);
+        }
+      }
+    },
+    onMerge: () => {
+      const store = useTimelineStore.getState();
+      if (store.selectedClipIds.length >= 2) {
+        store.saveToHistory();
+        store.mergeClips(store.selectedClipIds);
+      }
+    },
   });
 
   // Sync playback with animation frame
