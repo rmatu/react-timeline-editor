@@ -52,6 +52,8 @@ Responsible for WYSIWYG playback and rendering.
     -   **`VideoLayer`**: Renders individual `<video>` elements.
         -   **Synchronization**: Manually syncs `currentTime` if drift > 0.2s.
         -   **Ref Management**: Each layer manages its own React Ref to the DOM element.
+    -   **`AudioLayer`**: Renders individual `<audio>` elements for independent audio clips.
+        -   Decoupled from video playback to ensuring background music plays correctly.
     -   **`TextOverlay`**: Renders text elements over the video.
 
 -   **`PreviewControls`**:
@@ -62,8 +64,9 @@ Responsible for WYSIWYG playback and rendering.
 Responsible for manipulation and editing.
 
 -   **`Timeline`**: Main scrollable container.
-    -   **`TimeRuler`**: Top horizontal axis displaying timecodes.
+    -   **`TimeRuler`**: Top horizontal axis displaying timecodes. Supports scroll-to-zoom.
     -   **`Playhead`**: Vertical red line indicating `currentTime`.
+    -   **`DurationHandle`**: Draggable handle at the end of the timeline to manually extend total duration.
     -   **`TrackList`**: Renders the vertical list of `Track` components.
         -   **`Track`**: Droppable zone for Dnd.
             -   **`Clip`**: Draggable/Resizable item.
