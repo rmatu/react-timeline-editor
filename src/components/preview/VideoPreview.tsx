@@ -127,48 +127,90 @@ export function VideoPreview({
     setLoadedStates((prev) => ({ ...prev, [id]: isLoaded }));
   }, []);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Calculate optimal player dimensions to contain within parent while maintaining aspect ratio
+  const playerStyle = useMemo(() => {
+    if (containerDimensions.width === 0 || containerDimensions.height === 0) {
+      return { width: "100%", height: "100%" }; // Fallback
+    }
+
+    const { width: containerW, height: containerH } = containerDimensions;
+    const targetAspect = resolution.width / resolution.height;
+    const containerAspect = containerW / containerH;
+
+    let width, height;
+
+    if (containerAspect > targetAspect) {
+      // Container is wider than target -> Constrain by height
+      height = containerH;
+      width = height * targetAspect;
+    } else {
+      // Container is taller than target -> Constrain by width
+      width = containerW;
+      height = width / targetAspect;
+    }
+
+    return {
+      width: `${width}px`,
+      height: `${height}px`,
+    };
+  }, [containerDimensions, resolution]);
+
   return (
-    <div
-      className={cn(
-        "relative flex items-center justify-center overflow-hidden rounded-lg bg-black w-full",
-        className
-      )}
-      style={{
-        aspectRatio: `${resolution.width} / ${resolution.height}`,
-        maxHeight: "100%",
-        maxWidth: "100%",
-      }}
-    >
-      {/* Render all video clips */}
-      {videoClips.map((clip) => (
-        <VideoLayer
-          key={clip.id}
-          clip={clip}
-          isActive={activeVideoClip?.id === clip.id}
-          isPlaying={isPlaying}
-          currentTime={currentTime}
-          onTimeUpdate={onTimeUpdate}
-          onLoadStatusChange={handleLoadStatusChange}
-        />
-      ))}
+    <div ref={containerRef} className={cn("flex items-center justify-center w-full h-full min-h-0", className)}>
+      <div
+        className="relative flex items-center justify-center overflow-hidden rounded-lg bg-black shadow-2xl"
+        style={playerStyle}
+      >
+        {/* Render all video clips */}
+        {videoClips.map((clip) => (
+          <VideoLayer
+            key={clip.id}
+            clip={clip}
+            isActive={activeVideoClip?.id === clip.id}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            onTimeUpdate={onTimeUpdate}
+            onLoadStatusChange={handleLoadStatusChange}
+          />
+        ))}
 
-      {/* Text overlays */}
-      <TextOverlay currentTime={currentTime} />
+        {/* Text overlays */}
+        <TextOverlay currentTime={currentTime} />
 
-      {/* Loading state - only if active clip is not loaded */}
-      {activeVideoClip && !loadedStates[activeVideoClip.id] && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-        </div>
-      )}
+        {/* Loading state - only if active clip is not loaded */}
+        {activeVideoClip && !loadedStates[activeVideoClip.id] && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+          </div>
+        )}
 
-      {/* Playback indicator overlay */}
-      {isPlaying && activeVideoClip && (
-        <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/50 px-2 py-1 text-xs text-white z-20">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-          Playing
-        </div>
-      )}
+        {/* Playback indicator overlay */}
+        {isPlaying && activeVideoClip && (
+          <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/50 px-2 py-1 text-xs text-white z-20">
+            <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+            Playing
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -124,18 +124,13 @@ export async function exportToMp4({
       const vid = videoElements.get(clip.id);
       if (vid) {
         const seekTime = clip.sourceStartTime + (time - clip.startTime);
-        vid.currentTime = seekTime;
-
-        await new Promise<void>(resolve => {
-          if (Math.abs(vid.currentTime - seekTime) < 0.1) {
-            resolve();
-            return;
-          }
+        await new Promise<void>((resolve, reject) => {
           const onSeeked = () => {
             vid.removeEventListener('seeked', onSeeked);
             resolve();
           };
-          vid.addEventListener('seeked', onSeeked);
+          vid.addEventListener('seeked', onSeeked, { once: true });
+          vid.currentTime = seekTime;
         });
 
         // Draw centered and contained
