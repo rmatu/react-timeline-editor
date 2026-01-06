@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { usePlayhead } from "@/hooks/usePlayhead";
 import { useZoom } from "@/hooks/useZoom";
@@ -8,6 +9,41 @@ import { cn } from "@/lib/utils";
 interface PreviewControlsProps {
   className?: string;
 }
+
+const AspectRatioIcon = ({ width, height, className }: { width: number; height: number; className?: string }) => {
+  // Normalize dimensions to fit in a 24x24 box
+  const maxDim = 18;
+  const ratio = width / height;
+  let w, h;
+  
+  if (ratio > 1) {
+    w = maxDim;
+    h = maxDim / ratio;
+  } else {
+    h = maxDim;
+    w = maxDim * ratio;
+  }
+
+  return (
+    <svg className={className} 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="currentColor"
+    >
+      <rect 
+        x={12 - w/2} 
+        y={12 - h/2} 
+        width={w} 
+        height={h} 
+        rx="1" 
+        stroke="currentColor" 
+        strokeWidth="1.5"
+        fill="none"
+      />
+    </svg>
+  );
+};
 
 export function PreviewControls({ className }: PreviewControlsProps) {
   const { fps, totalDuration, resolution, setResolution } = useTimelineStore();
@@ -21,6 +57,24 @@ export function PreviewControls({ className }: PreviewControlsProps) {
     stepBackward,
   } = usePlayhead();
   const { zoomIn, zoomOut, resetZoom, zoomPercentage } = useZoom();
+
+  const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
+  const ratioMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ratioMenuRef.current && !ratioMenuRef.current.contains(event.target as Node)) {
+        setIsRatioMenuOpen(false);
+      }
+    };
+
+    if (isRatioMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isRatioMenuOpen]);
 
   return (
     <div
@@ -101,24 +155,59 @@ export function PreviewControls({ className }: PreviewControlsProps) {
       </div>
 
       {/* Aspect Ratio Selector */}
-      <div className="flex items-center">
-        <select
-          className="bg-transparent text-xs text-zinc-400 focus:outline-none cursor-pointer hover:text-white transition-colors appearance-none pr-2 text-right"
-          value={Object.entries(RESOLUTION_PRESETS).find(([_, r]) => r.width === resolution.width && r.height === resolution.height)?.[0] || ""}
-          onChange={(e) => {
-            const preset = RESOLUTION_PRESETS[e.target.value as keyof typeof RESOLUTION_PRESETS];
-            if (preset) {
-              setResolution(preset.width, preset.height);
-            }
-          }}
+      <div className="relative" ref={ratioMenuRef}>
+        <button
+          className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+          onClick={() => setIsRatioMenuOpen(!isRatioMenuOpen)}
           title="Aspect Ratio"
         >
-          {Object.entries(RESOLUTION_PRESETS).map(([key, preset]) => (
-            <option key={key} value={key} className="bg-zinc-800">
-              {preset.label}
-            </option>
-          ))}
-        </select>
+          <AspectRatioIcon 
+            width={resolution.width} 
+            height={resolution.height} 
+            className="w-4 h-4"
+          />
+          <span>
+            {Object.values(RESOLUTION_PRESETS).find(
+              (r) => r.width === resolution.width && r.height === resolution.height
+            )?.label || "Custom"}
+          </span>
+          <svg className="w-3 h-3 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+             <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        {isRatioMenuOpen && (
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50 overflow-hidden py-1">
+            {Object.entries(RESOLUTION_PRESETS).map(([key, preset]) => {
+              const isActive = preset.width === resolution.width && preset.height === resolution.height;
+              return (
+                <button
+                  key={key}
+                  className={cn(
+                    "flex w-full items-center gap-3 px-3 py-2 text-xs text-left transition-colors",
+                    isActive 
+                      ? "bg-blue-600/10 text-blue-400" 
+                      : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                  )}
+                  onClick={() => {
+                    setResolution(preset.width, preset.height);
+                    setIsRatioMenuOpen(false);
+                  }}
+                >
+                  <AspectRatioIcon 
+                    width={preset.width} 
+                    height={preset.height} 
+                    className={cn("w-4 h-4", isActive ? "text-blue-400" : "text-zinc-500")}
+                  />
+                  <div>
+                    <div className="font-medium">{preset.label}</div>
+                    <div className="text-[10px] opacity-70">{preset.width}x{preset.height}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Zoom Controls */}
