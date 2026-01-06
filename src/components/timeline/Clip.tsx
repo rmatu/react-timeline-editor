@@ -119,6 +119,8 @@ export const Clip = memo(function Clip({
           "border-2 transition-shadow",
           isSelected
             ? "border-blue-500 shadow-lg shadow-blue-500/20"
+            : clip.type === "text"
+            ? "border-white/20 hover:border-white/40" // Text clips always have a subtle border
             : "border-transparent hover:border-white/20",
           isDragging && "dragging opacity-80 shadow-xl z-50", // Increased z-index
           isTrimming && "z-20",
