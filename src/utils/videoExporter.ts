@@ -127,21 +127,14 @@ export async function exportToMp4({
         const seekTime = clip.sourceStartTime + (time - clip.startTime);
 
         // Seek relative to frame
-        vid.currentTime = seekTime;
-
         // Wait for seek (crucial for frame accuracy)
-        await new Promise<void>(resolve => {
-          if (Math.abs(vid.currentTime - seekTime) < 0.1) {
-            resolve();
-            return;
-          }
+        await new Promise<void>((resolve, reject) => {
           const onSeeked = () => {
             vid.removeEventListener('seeked', onSeeked);
             resolve();
           };
-          vid.addEventListener('seeked', onSeeked);
-          // Force seek again just in case?
-          // vid.currentTime = seekTime; 
+          vid.addEventListener('seeked', onSeeked, { once: true });
+          vid.currentTime = seekTime;
         });
 
         // Draw
