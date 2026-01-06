@@ -6,6 +6,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 
 - **Multi-track Timeline** - Support for video, audio, text, and sticker tracks
 - **Clip Manipulation** - Drag to reposition, trim handles to adjust duration
+- **Split & Merge** - Cut clips at playhead, combine adjacent clips
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
 - **Gesture Support** - Pinch-to-zoom, scroll, and drag (touch + mouse)
@@ -280,6 +281,8 @@ const {
   removeClip,
   moveClip,
   trimClip,
+  splitClip,        // Split clip at time
+  mergeClips,       // Merge adjacent clips
   selectClip,
   deselectAll,
   loadTimeline,
@@ -398,6 +401,8 @@ if (result.success) {
 |-----|--------|
 | `Space` | Play/Pause |
 | `Delete` / `Backspace` | Delete selected clips |
+| `S` | Split selected clips at playhead |
+| `M` | Merge selected clips |
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y` | Redo |
 | `Ctrl/Cmd + A` | Select all clips |

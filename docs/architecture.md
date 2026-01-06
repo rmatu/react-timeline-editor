@@ -179,3 +179,26 @@ Handled in `src/hooks/useClipDrag.ts`.
 -   **Track Switching**:
     -   Dragging vertically calculates which track row the cursor is over.
     -   "Phantom Tracks": Dragging to the very top or bottom creates a temporary drop zone. Dropping there automatically creates a new track.
+
+### Split & Merge
+Clip splitting and merging are handled via store actions (`splitClip`, `mergeClips`).
+
+-   **Split** (`S` key or toolbar button):
+    -   Divides a clip at the current playhead position into two separate clips.
+    -   Validates that the split time is within the clip bounds (not at edges).
+    -   Creates two new clips:
+        -   **Left Clip**: Keeps the original `startTime`, but `duration` ends at split point.
+        -   **Right Clip**: Starts at split point, has adjusted `sourceStartTime` for video/audio clips.
+    -   Both resulting clips are selected after the operation.
+
+-   **Merge** (`M` key or toolbar button):
+    -   Combines two or more selected clips into a single clip.
+    -   Requirements:
+        -   All clips must be the same type.
+        -   All clips must be on the same track.
+        -   Clips must be adjacent (within 0.1s tolerance).
+        -   For video/audio: must have the same `sourceUrl` and contiguous `sourceStartTime` ranges.
+    -   Creates a merged clip spanning the full duration.
+    -   The merged clip is selected after the operation.
+
+-   **Undo/Redo**: Both operations save to history before executing, enabling full undo/redo support.
