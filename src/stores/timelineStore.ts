@@ -11,6 +11,14 @@ import {
   DEFAULT_FPS,
 } from "@/constants/timeline.constants";
 
+export interface TimelineExport {
+  fps: number;
+  duration: number;
+  resolution: { width: number; height: number };
+  tracks: Track[];
+  clips: Clip[];
+}
+
 // Enable Immer support for Map and Set
 enableMapSet();
 
@@ -111,6 +119,7 @@ interface TimelineActions {
 
   // Bulk operations
   loadTimeline: (tracks: Track[], clips: Clip[]) => void;
+  exportTimeline: () => TimelineExport;
   clearTimeline: () => void;
 }
 
@@ -438,6 +447,17 @@ export const useTimelineStore = create<TimelineStore>()(
           state.currentTime = 0;
           state.isPlaying = false;
         }),
+
+      exportTimeline: () => {
+        const state = get();
+        return {
+          fps: state.fps,
+          duration: state.totalDuration,
+          resolution: state.resolution,
+          tracks: Array.from(state.tracks.values()),
+          clips: Array.from(state.clips.values()),
+        };
+      },
     })),
     { name: "timeline-store" }
   )

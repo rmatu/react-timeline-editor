@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Toaster } from "sonner";
 import { Timeline } from "@/components/timeline";
 import { VideoPreview, PreviewControls } from "@/components/preview";
@@ -6,6 +7,8 @@ import { ResizablePanel } from "@/components/ResizablePanel";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, TextClip } from "@/schemas";
+import { exportToMp4 } from "@/utils/ffmpegExporter";
+import { ExportSettingsModal, type ExportSettings } from "@/components/ExportSettingsModal";
 
 // Demo data
 const demoTracks = [
@@ -104,8 +107,79 @@ function App() {
     togglePlayback,
     setCurrentTime,
     loadTimeline,
+    exportTimeline,
     setDuration,
   } = useTimelineStore();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  const handleExportJson = () => {
+    const data = exportTimeline();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "timeline-export.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportMp4 = async (settings: ExportSettings) => {
+    if (isExporting) return;
+    
+    // FFmpeg.wasm requires SharedArrayBuffer which requires secure context (https) and specific headers
+    // We added headers in vite.config.ts. 
+    // It should work in Dev (localhost) and correctly configured Production.
+
+    try {
+      setIsExporting(true);
+      const store = useTimelineStore.getState();
+      const toastId = toast.loading("Exporting video... (Rendering + Encoding)");
+
+      const blob = await exportToMp4({
+        width: settings.width,
+        height: settings.height,
+        fps: settings.fps,
+        quality: settings.quality,
+        filename: settings.filename,
+        duration: store.totalDuration,
+        tracks: store.tracks,
+        clips: store.clips,
+        onProgress: (progress) => {
+          // Show different messages based on phase (approximate)
+          if (progress < 0.8) {
+              toast.loading(`Rendering... ${Math.round(progress/0.8 * 100)}%`, { id: toastId });
+          } else {
+              toast.loading(`Encoding... ${Math.round((progress-0.8)/0.2 * 100)}%`, { id: toastId });
+          }
+        },
+      });
+
+      // Download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${settings.filename}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("Export complete!", { id: toastId });
+      setIsExportModalOpen(false); // Close modal on success
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to export video", { 
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Load demo data on mount
   useEffect(() => {
@@ -126,6 +200,21 @@ function App() {
           <span>Drag handles to trim</span>
           <span>•</span>
           <span>Ctrl+Scroll to zoom</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportJson}
+            className="rounded bg-zinc-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
+          >
+            Export JSON
+          </button>
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            disabled={isExporting}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExporting ? "Exporting..." : "Export MP4"}
+          </button>
         </div>
       </header>
 
@@ -159,6 +248,16 @@ function App() {
         />
       </ResizablePanel>
       <Toaster position="bottom-center" theme="dark" />
+      
+      <ExportSettingsModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={handleExportMp4}
+        isExporting={isExporting}
+        defaultSettings={{
+             // Pre-fill with store values if desired, for now defaults in component are fine
+        }}
+      />
     </div>
   );
 }

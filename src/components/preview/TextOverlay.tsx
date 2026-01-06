@@ -7,7 +7,7 @@ interface TextOverlayProps {
 }
 
 export function TextOverlay({ currentTime }: TextOverlayProps) {
-  const { clips } = useTimelineStore();
+  const { clips, tracks } = useTimelineStore();
 
   // Find all active text clips at current time
   const activeTextClips = useMemo(() => {
@@ -15,9 +15,10 @@ export function TextOverlay({ currentTime }: TextOverlayProps) {
       (clip): clip is TextClip =>
         clip.type === "text" &&
         currentTime >= clip.startTime &&
-        currentTime < clip.startTime + clip.duration
+        currentTime < clip.startTime + clip.duration &&
+        tracks.get(clip.trackId)?.visible !== false
     );
-  }, [clips, currentTime]);
+  }, [clips, tracks, currentTime]);
 
   if (activeTextClips.length === 0) return null;
 
