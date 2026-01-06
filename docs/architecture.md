@@ -34,8 +34,8 @@ The core data structures are defined in `src/schemas/index.ts`.
     -   `duration`: length on timeline (seconds).
     -   `sourceStartTime`: Start point within the source media (for trimming).
 -   **Types**:
-    -   `VideoClip`: `sourceUrl`, `thumbnailUrl`, `volume`.
-    -   `AudioClip`: `sourceUrl`, `waveformData`, `volume`.
+    -   `VideoClip`: `sourceUrl`, `thumbnailUrl`, `volume`, `thumbnails` (generated cache).
+    -   `AudioClip`: `sourceUrl`, `waveformData` (computed RMS peaks), `volume`.
     -   `TextClip`: `content`, `style` (font, size, color), `position` (x/y).
 
 ## 3. Component Hierarchy
@@ -86,6 +86,21 @@ User interactions are abstracted into custom hooks in `src/hooks/`:
     -   Calculates delta based on `zoomLevel`.
     -   Handles snapping to other clips/playhead (`useSnapping.ts`).
     -   Updates optimistic UI during drag, commits to store on drag end.
+
+### Clip Visualization
+Visualization of media on the timeline is handled asynchronously to ensure performance.
+
+-   **Video Thumbnails**:
+    -   Generated client-side using an off-screen `HTMLVideoElement` and `Canvas`.
+    -   Extracts frames at regular intervals based on clip duration and pixel width.
+    -   Caches results to avoid re-generation during pans/zooms where possible.
+    -   Renders as a "filmstrip" of images.
+
+-   **Audio Waveforms**:
+    -   Uses `Web Audio API` (`AudioContext.decodeAudioData`).
+    -   Fetches the full audio file buffer, decodes it, and calculates RMS (Root Mean Square) amplitude peaks.
+    -   Renders as an SVG with discrete rounded bars (frequency visualizer style) for performance and aesthetics.
+    -   Logic encapsulated in `useAudioWaveform` hook.
 
 ### Export Pipeline
 The app supports two export methods (in `src/utils/`):
