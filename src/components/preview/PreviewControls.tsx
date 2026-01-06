@@ -57,6 +57,7 @@ export function PreviewControls({ className }: PreviewControlsProps) {
     stepBackward,
   } = usePlayhead();
   const { zoomIn, zoomOut, resetZoom, zoomPercentage } = useZoom();
+  const { selectedClipIds, splitClip, mergeClips, saveToHistory } = useTimelineStore();
 
   const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
   const ratioMenuRef = useRef<HTMLDivElement>(null);
@@ -147,6 +148,57 @@ export function PreviewControls({ className }: PreviewControlsProps) {
         </button>
       </div>
 
+      {/* Editing Tools */}
+      <div className="flex items-center gap-1 border-l border-zinc-700 pl-4">
+        {/* Split */}
+        <button
+          className={cn(
+            "rounded p-1.5 transition-colors",
+            selectedClipIds.length > 0
+              ? "text-zinc-400 hover:bg-zinc-700 hover:text-white"
+              : "text-zinc-600 cursor-not-allowed"
+          )}
+          onClick={() => {
+            if (selectedClipIds.length > 0) {
+              saveToHistory();
+              for (const clipId of selectedClipIds) {
+                splitClip(clipId, currentTime);
+              }
+            }
+          }}
+          disabled={selectedClipIds.length === 0}
+          title="Split clip at playhead (S)"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 4l4 4-4 4M18 4l-4 4 4 4" />
+            <line x1="12" y1="2" x2="12" y2="22" strokeDasharray="2 2" />
+          </svg>
+        </button>
+
+        {/* Merge */}
+        <button
+          className={cn(
+            "rounded p-1.5 transition-colors",
+            selectedClipIds.length >= 2
+              ? "text-zinc-400 hover:bg-zinc-700 hover:text-white"
+              : "text-zinc-600 cursor-not-allowed"
+          )}
+          onClick={() => {
+            if (selectedClipIds.length >= 2) {
+              saveToHistory();
+              mergeClips(selectedClipIds);
+            }
+          }}
+          disabled={selectedClipIds.length < 2}
+          title="Merge selected clips (M)"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 4l-4 4 4 4M6 4l4 4-4 4" />
+            <line x1="8" y1="8" x2="16" y2="8" />
+          </svg>
+        </button>
+      </div>
+
       {/* Timecode Display */}
       <div className="flex items-center gap-2 font-mono text-sm">
         <span className="text-white">{formatTimecode(currentTime, fps)}</span>
@@ -177,7 +229,7 @@ export function PreviewControls({ className }: PreviewControlsProps) {
         </button>
 
         {isRatioMenuOpen && (
-          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50 overflow-hidden py-1">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl z-50 overflow-hidden py-1">
             {Object.entries(RESOLUTION_PRESETS).map(([key, preset]) => {
               const isActive = preset.width === resolution.width && preset.height === resolution.height;
               return (

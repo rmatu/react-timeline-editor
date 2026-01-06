@@ -12,6 +12,8 @@ interface UseKeyboardShortcutsOptions {
   onDeselectAll?: () => void;
   onNudgeLeft?: () => void;
   onNudgeRight?: () => void;
+  onSplit?: () => void;
+  onMerge?: () => void;
   disabled?: boolean;
 }
 
@@ -26,6 +28,8 @@ export function useKeyboardShortcuts({
   onDeselectAll,
   onNudgeLeft,
   onNudgeRight,
+  onSplit,
+  onMerge,
   disabled = false,
 }: UseKeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
@@ -115,6 +119,20 @@ export function useKeyboardShortcuts({
         onNudgeRight?.();
         return;
       }
+
+      // Split (S)
+      if (key.toLowerCase() === KEYBOARD_SHORTCUTS.SPLIT && !ctrl && !shift) {
+        e.preventDefault();
+        onSplit?.();
+        return;
+      }
+
+      // Merge (M)
+      if (key.toLowerCase() === KEYBOARD_SHORTCUTS.MERGE && !ctrl && !shift) {
+        e.preventDefault();
+        onMerge?.();
+        return;
+      }
     },
     [
       disabled,
@@ -128,6 +146,8 @@ export function useKeyboardShortcuts({
       onDeselectAll,
       onNudgeLeft,
       onNudgeRight,
+      onSplit,
+      onMerge,
     ]
   );
 
