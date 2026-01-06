@@ -47,14 +47,20 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
       : [];
 
   useEffect(() => {
-    // If we already have enough thumbnails from the clip data, don't generate
-    if (clip.thumbnails && clip.thumbnails.length >= thumbCount) return;
+    // Reset thumbnails if source changes
+    setGeneratedThumbnails([]);
+  }, [clip.sourceUrl, clip.sourceStartTime]);
 
-    // If already generating or generated for this count, skip
-    if (generationRef.current || generatedThumbnails.length >= thumbCount)
-      return;
+  useEffect(() => {
+    const targetCount = thumbCount;
+    const currentCount = generatedThumbnails.length;
 
-    // Start generation
+    // If we have enough, stop
+    if (currentCount >= targetCount) return;
+
+    // Avoid parallel generation (basic lock)
+    if (generationRef.current) return;
+
     generationRef.current = true;
     const video = document.createElement("video");
     video.src = clip.sourceUrl;
@@ -65,8 +71,6 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
-    // Thumbnails to collect
-    const newThumbnails: string[] = [];
     let isCancelled = false;
 
     const generate = async () => {
@@ -76,48 +80,56 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
           video.onerror = (e) => reject(e);
         });
 
-        // Aspect ratio for canvas
         const vw = video.videoWidth;
         const vh = video.videoHeight;
-        
-        // Calculate correct thumb width based on aspect ratio
         const aspect = vw / vh;
         const actualThumbWidth = thumbHeight * aspect;
         
-        canvas.width = actualThumbWidth * 2; // Retina
+        canvas.width = actualThumbWidth * 2;
         canvas.height = thumbHeight * 2;
 
+        // Determine step size (time per thumbnail)
+        // thumbCount approx covers proper density
+        // But here we want to match linear time
         const totalDuration = clip.duration;
-        const step = totalDuration / thumbCount;
+        const baseStep = totalDuration / targetCount; 
 
-        for (let i = 0; i < thumbCount; i++) {
+        // Start from where we left off
+        for (let i = currentCount; i < targetCount; i++) {
           if (isCancelled) break;
 
-          // Calculate time relative to the source video, taking clip start time into account
-          const time = clip.sourceStartTime + i * step;
-          video.currentTime = Math.min(time, video.duration);
+          const time = clip.sourceStartTime + i * baseStep;
+          if (time > video.duration) break;
+
+          video.currentTime = time;
 
           await new Promise<void>((resolve) => {
-            const onSeeked = () => {
-              video.removeEventListener("seeked", onSeeked);
-              resolve();
-            };
-            video.addEventListener("seeked", onSeeked);
+             const onSeeked = () => {
+               video.removeEventListener("seeked", onSeeked);
+               resolve();
+             };
+             video.addEventListener("seeked", onSeeked);
+             // Fallback if event doesn't fire quickly
+             if (video.readyState >= 2) onSeeked(); 
           });
 
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            // Low quality JPEG for memory efficiency
             const url = canvas.toDataURL("image/jpeg", 0.7);
-            newThumbnails.push(url);
-            // Update incrementally to show progress
-            setGeneratedThumbnails([...newThumbnails]);
+            
+            // Append safely
+            setGeneratedThumbnails(prev => {
+                // Ensure we don't insert duplicates or gaps if state shifted
+                if (prev.length === i) {
+                    return [...prev, url];
+                }
+                return prev;
+            });
           }
         }
       } catch (e) {
-        console.error("Thumbnail generation failed", e);
+        console.error("Thumbnail gen failed", e);
       } finally {
-        // Cleanup
         generationRef.current = false;
         video.src = "";
         video.remove();
@@ -130,11 +142,11 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
       isCancelled = true;
     };
   }, [
-    clip.sourceUrl,
-    clip.sourceStartTime,
-    clip.duration,
-    thumbCount,
-    clip.thumbnails,
+    clip.sourceUrl, 
+    clip.sourceStartTime, 
+    clip.duration, 
+    thumbCount, 
+    generatedThumbnails.length // Re-run if length mismatch but handled by loops
   ]);
 
   if (thumbnails.length === 0) {

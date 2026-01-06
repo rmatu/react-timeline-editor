@@ -174,7 +174,7 @@ export function useClipTrim({ clip, zoomLevel, disabled = false }: UseClipTrimOp
       // Minimum duration
       newDuration = Math.max(MIN_CLIP_DURATION, newDuration);
       // Can't extend past timeline end
-      newDuration = Math.min(totalDuration - clip.startTime, newDuration);
+      // newDuration = Math.min(totalDuration - clip.startTime, newDuration);
       // For finite clips, can't extend past source duration
       if (hasFiniteDuration(clip) && clip.maxDuration !== undefined) {
         const maxExtend = clip.maxDuration - initial.sourceStartTime;

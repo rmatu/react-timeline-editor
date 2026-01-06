@@ -342,7 +342,14 @@ export const useTimelineStore = create<TimelineStore>()(
             if (newTrackId && state.tracks.has(newTrackId)) {
               updates.trackId = newTrackId;
             }
-            state.clips.set(clipId, { ...clip, ...updates } as Clip);
+            const updatedClip = { ...clip, ...updates } as Clip;
+            state.clips.set(clipId, updatedClip);
+
+            // Auto-extend duration if needed
+            const clipEnd = updatedClip.startTime + updatedClip.duration;
+            if (clipEnd > state.totalDuration) {
+              state.totalDuration = Math.ceil(clipEnd);
+            }
           }
         }),
 
@@ -357,7 +364,14 @@ export const useTimelineStore = create<TimelineStore>()(
             if (newSourceStartTime !== undefined) {
               updates.sourceStartTime = newSourceStartTime;
             }
-            state.clips.set(clipId, { ...clip, ...updates } as Clip);
+            const updatedClip = { ...clip, ...updates } as Clip;
+            state.clips.set(clipId, updatedClip);
+
+            // Auto-extend duration if needed
+            const clipEnd = updatedClip.startTime + updatedClip.duration;
+            if (clipEnd > state.totalDuration) {
+              state.totalDuration = Math.ceil(clipEnd);
+            }
           }
         }),
 
@@ -414,7 +428,14 @@ export const useTimelineStore = create<TimelineStore>()(
       // Timeline configuration
       setDuration: (duration) =>
         set((state) => {
-          state.totalDuration = Math.max(1, duration);
+          // Find the furthest ending clip
+          let maxClipEnd = 0;
+          for (const clip of state.clips.values()) {
+            maxClipEnd = Math.max(maxClipEnd, clip.startTime + clip.duration);
+          }
+
+          // Don't allow duration less than content or 1s
+          state.totalDuration = Math.max(1, maxClipEnd, duration);
         }),
 
       setFps: (fps) =>

@@ -54,7 +54,9 @@ const demoClips: Array<VideoClip | AudioClip | TextClip> = [
     startTime: 0,
     duration: 20,
     sourceStartTime: 0,
-    sourceUrl: "https://example.com/audio.mp3",
+    // sourceUrl: "https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav", // WAV might be big.
+    // Let's stick to the google bucket sample, it works.
+    sourceUrl: "https://commondatastorage.googleapis.com/codeskulptor-demos/riceracer_assets/music/race1.ogg",
     volume: 0.8,
     fadeIn: 0.5,
     fadeOut: 1,
@@ -183,7 +185,7 @@ function App() {
 
   // Load demo data on mount
   useEffect(() => {
-    setDuration(30);
+    // setDuration(30); // Removed to allow default duration and auto-extension
     loadTimeline(demoTracks, demoClips);
   }, [loadTimeline, setDuration]);
 

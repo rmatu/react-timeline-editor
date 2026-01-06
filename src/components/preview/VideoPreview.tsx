@@ -3,7 +3,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { cn } from "@/lib/utils";
 import { TextOverlay } from "./TextOverlay";
 import type { VideoPreviewProps } from "@/types";
-import type { VideoClip } from "@/schemas";
+import type { VideoClip, AudioClip } from "@/schemas";
 
 // Separate component for each video layer to manage its own ref and state
 const VideoLayer = memo(({ 
@@ -12,14 +12,16 @@ const VideoLayer = memo(({
   isPlaying, 
   currentTime, 
   onTimeUpdate,
-  onLoadStatusChange
+  onLoadStatusChange,
+  trackMuted,
 }: { 
   clip: VideoClip, 
   isActive: boolean, 
   isPlaying: boolean, 
   currentTime: number,
   onTimeUpdate: (time: number) => void,
-  onLoadStatusChange: (id: string, isLoaded: boolean) => void
+  onLoadStatusChange: (id: string, isLoaded: boolean) => void,
+  trackMuted: boolean
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -35,11 +37,10 @@ const VideoLayer = memo(({
     if (!video) return;
 
     // 1. Mute/Volume
-    video.muted = !isActive || clip.muted;
+    video.muted = !isActive || clip.muted || trackMuted;
     video.volume = clip.volume;
 
     // 2. Playback State
-    // If active and global Playing is true, play. Otherwise pause.
     if (isActive && isPlaying) {
       video.play().catch(() => {
         // Autoplay restrictions or not loaded yet
@@ -52,9 +53,6 @@ const VideoLayer = memo(({
     const targetVideoTime = clip.sourceStartTime + (currentTime - clip.startTime);
     
     // Check if we need to sync (seek)
-    // We strictly sync if:
-    // a) We are paused (scrubbing)
-    // b) We are playing but drifted significantly (> 0.2s)
     const timeDiff = Math.abs(video.currentTime - targetVideoTime);
     
     if (!isPlaying || timeDiff > 0.2) {
@@ -63,7 +61,7 @@ const VideoLayer = memo(({
          video.currentTime = targetVideoTime;
       }
     }
-  }, [isActive, isPlaying, clip, currentTime]);
+  }, [isActive, isPlaying, clip, currentTime, trackMuted]);
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     if (!isActive || !isPlaying) return;
@@ -92,6 +90,62 @@ const VideoLayer = memo(({
 });
 
 VideoLayer.displayName = "VideoLayer";
+
+const AudioLayer = memo(({ 
+  clip, 
+  isActive, 
+  isPlaying, 
+  currentTime, 
+  trackMuted,
+}: { 
+  clip: AudioClip | VideoClip, 
+  isActive: boolean, 
+  isPlaying: boolean, 
+  currentTime: number,
+  trackMuted: boolean
+}) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // 1. Mute/Volume
+    audio.muted = !isActive || clip.muted || trackMuted;
+    audio.volume = clip.volume;
+
+    // 2. Playback State
+    if (isActive && isPlaying) {
+      audio.play().catch(() => {
+        // Autoplay restrictions
+      });
+    } else {
+      audio.pause();
+    }
+
+    // 3. Time Sync
+    const targetAudioTime = clip.sourceStartTime + (currentTime - clip.startTime);
+    
+    const timeDiff = Math.abs(audio.currentTime - targetAudioTime);
+    
+    if (!isPlaying || timeDiff > 0.2) {
+      if (Number.isFinite(targetAudioTime)) {
+         audio.currentTime = targetAudioTime;
+      }
+    }
+  }, [isActive, isPlaying, clip, currentTime, trackMuted]);
+
+  return (
+    <audio
+      ref={audioRef}
+      src={clip.sourceUrl}
+      className="hidden"
+      onEnded={() => { /* Loop or stop? defaults to stop */ }}
+    />
+  );
+});
+
+AudioLayer.displayName = "AudioLayer";
 
 export function VideoPreview({
   currentTime,
@@ -190,8 +244,28 @@ export function VideoPreview({
             currentTime={currentTime}
             onTimeUpdate={onTimeUpdate}
             onLoadStatusChange={handleLoadStatusChange}
+            trackMuted={tracks.get(clip.trackId)?.muted ?? false}
           />
         ))}
+
+        {/* Render all audio clips */}
+        {Array.from(clips.values())
+          .filter((c): c is AudioClip => c.type === "audio")
+          .map((clip) => {
+             const track = tracks.get(clip.trackId);
+             const isActive = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration && track?.visible !== false;
+             return (
+              <AudioLayer
+                key={clip.id}
+                clip={clip}
+                isActive={isActive}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                trackMuted={track?.muted ?? false}
+              />
+            );
+          })}
+
 
         {/* Text overlays */}
         <TextOverlay currentTime={currentTime} />
