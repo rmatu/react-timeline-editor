@@ -193,6 +193,12 @@ Handled in `src/hooks/useClipDrag.ts`.
 -   **Track Switching**:
     -   Dragging vertically calculates which track row the cursor is over.
     -   "Phantom Tracks": Dragging to the very top or bottom creates a temporary drop zone. Dropping there automatically creates a new track.
+-   **Collision Detection**:
+    -   Clips on the same track cannot overlap.
+    -   Uses `wouldClipsOverlap()` from `src/utils/snapping.ts` during drag.
+    -   If a drop would cause overlap, the clip is automatically placed on a **new track** at the top.
+    -   Visual indicator (`NewTrackIndicator`) shows amber warning: "⚠️ Overlapping – Will Create New Track".
+    -   State tracked via `collisionDetectedAtom` in `SnapGuide.tsx`.
 
 ### Split & Merge
 Clip splitting and merging are handled via store actions (`splitClip`, `mergeClips`).

@@ -9,6 +9,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
+- **Collision Detection** - Clips on the same track cannot overlap; auto-creates new track with visual feedback
 - **Gesture Support** - Pinch-to-zoom, scroll, and drag (touch + mouse)
 - **Video Preview** - Synchronized playback with smooth, stutter-free scrubbing
 - **Independent Audio** - Decoupled audio playback for background music and sound effects

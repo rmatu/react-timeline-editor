@@ -2,11 +2,12 @@ import { useState, useRef } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useAtom } from "jotai";
 import { useTimelineStore } from "@/stores/timelineStore";
-import { snapGuideAtom, showSnapGuide, hideSnapGuide, newTrackDropTargetAtom } from "@/components/timeline/SnapGuide";
+import { snapGuideAtom, showSnapGuide, hideSnapGuide, newTrackDropTargetAtom, collisionDetectedAtom } from "@/components/timeline/SnapGuide";
 import {
   generateSnapPoints,
   snapClipPosition,
   calculateSnapThreshold,
+  wouldClipsOverlap,
 } from "@/utils/snapping";
 import { pixelsToTime, timeToPixels } from "@/utils/time";
 import { SNAP_THRESHOLD_PX } from "@/constants/timeline.constants";
@@ -23,6 +24,7 @@ export function useClipDrag({ clip, zoomLevel, disabled = false }: UseClipDragOp
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [, setSnapGuide] = useAtom(snapGuideAtom);
   const [, setNewTrackDropTarget] = useAtom(newTrackDropTargetAtom);
+  const [, setCollisionDetected] = useAtom(collisionDetectedAtom);
   const initialTimeRef = useRef(clip.startTime);
 
   // Track layout refs
@@ -144,11 +146,29 @@ export function useClipDrag({ clip, zoomLevel, disabled = false }: UseClipDragOp
         }
       }
 
+      // Collision detection: check if dropping at this position would overlap
+      // Skip if already creating a new track (NEW_TOP or NEW_BOTTOM)
+      let hasCollision = false;
+      if (targetTrackId !== "NEW_TOP" && targetTrackId !== "NEW_BOTTOM") {
+        const allClips = Array.from(clips.values());
+        hasCollision = wouldClipsOverlap(clip, newStartTime, allClips, targetTrackId);
+
+        if (hasCollision) {
+          // Force creation of new track at top (same behavior as dragging up)
+          targetTrackId = "NEW_TOP";
+          newDropTarget = "top";
+          // Update visual position to show clip going to new track at top
+          visualY = -startTrackTopRef.current;
+        }
+      }
+
+      setCollisionDetected(hasCollision);
       setDragPosition({ x: newX, y: visualY });
       setNewTrackDropTarget(newDropTarget);
 
       if (last) {
         setNewTrackDropTarget(null);
+        setCollisionDetected(false);
         // Commit changes
         if (targetTrackId === "NEW_TOP") {
           // Create new track at top
