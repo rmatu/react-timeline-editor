@@ -14,6 +14,7 @@ interface UseKeyboardShortcutsOptions {
   onNudgeRight?: () => void;
   onSplit?: () => void;
   onMerge?: () => void;
+  onToggleSidepanel?: () => void;
   disabled?: boolean;
 }
 
@@ -30,6 +31,7 @@ export function useKeyboardShortcuts({
   onNudgeRight,
   onSplit,
   onMerge,
+  onToggleSidepanel,
   disabled = false,
 }: UseKeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
@@ -133,6 +135,13 @@ export function useKeyboardShortcuts({
         onMerge?.();
         return;
       }
+
+      // Toggle Sidepanel ([)
+      if (key === KEYBOARD_SHORTCUTS.TOGGLE_SIDEPANEL && !ctrl && !shift) {
+        e.preventDefault();
+        onToggleSidepanel?.();
+        return;
+      }
     },
     [
       disabled,
@@ -148,6 +157,7 @@ export function useKeyboardShortcuts({
       onNudgeRight,
       onSplit,
       onMerge,
+      onToggleSidepanel,
     ]
   );
 

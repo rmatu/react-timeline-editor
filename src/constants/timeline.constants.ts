@@ -64,6 +64,7 @@ export const KEYBOARD_SHORTCUTS = {
   ZOOM_OUT: "-",
   SPLIT: "s",
   MERGE: "m",
+  TOGGLE_SIDEPANEL: "[",
 } as const;
 
 // Colors for track types

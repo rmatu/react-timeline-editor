@@ -15,9 +15,10 @@ const BaseClipSchema = z.object({
 // Video clip schema
 export const VideoClipSchema = BaseClipSchema.extend({
   type: z.literal("video"),
-  sourceUrl: z.string().url(),
-  thumbnailUrl: z.string().url().optional(),
-  thumbnails: z.array(z.string().url()).optional(), // Array of thumbnail URLs for strip
+  sourceUrl: z.string(), // Can be blob URL or http URL
+  name: z.string().optional(), // Original filename for display
+  thumbnailUrl: z.string().optional(),
+  thumbnails: z.array(z.string()).optional(), // Array of thumbnail URLs for strip
   volume: z.number().min(0).max(1).default(1),
   playbackRate: z.number().positive().default(1),
 });
@@ -25,7 +26,8 @@ export const VideoClipSchema = BaseClipSchema.extend({
 // Audio clip schema
 export const AudioClipSchema = BaseClipSchema.extend({
   type: z.literal("audio"),
-  sourceUrl: z.string().url(),
+  sourceUrl: z.string(), // Can be blob URL or http URL
+  name: z.string().optional(), // Original filename for display
   waveformData: z.array(z.number().min(0).max(1)).optional(), // Normalized amplitude data
   volume: z.number().min(0).max(1).default(1),
   fadeIn: z.number().min(0).default(0), // Fade duration in seconds

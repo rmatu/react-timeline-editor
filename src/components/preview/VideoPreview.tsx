@@ -14,6 +14,7 @@ const VideoLayer = memo(({
   onTimeUpdate,
   onLoadStatusChange,
   trackMuted,
+  zIndex = 1,
 }: { 
   clip: VideoClip, 
   isActive: boolean, 
@@ -21,7 +22,8 @@ const VideoLayer = memo(({
   currentTime: number,
   onTimeUpdate: (time: number) => void,
   onLoadStatusChange: (id: string, isLoaded: boolean) => void,
-  trackMuted: boolean
+  trackMuted: boolean,
+  zIndex?: number,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -74,14 +76,18 @@ const VideoLayer = memo(({
     setIsLoaded(true);
   };
 
+  // Check if clip is in range (should be visible even if not active)
+  const isInRange = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
+
   return (
     <video
       ref={videoRef}
       src={clip.sourceUrl}
-      className={cn(
-        "absolute inset-0 h-full w-full object-contain pointer-events-none transition-opacity duration-200",
-        isActive ? "opacity-100 z-10" : "opacity-0 z-0"
-      )}
+      className="absolute inset-0 h-full w-full object-contain pointer-events-none transition-opacity duration-200"
+      style={{
+        opacity: isInRange ? 1 : 0,
+        zIndex: isInRange ? zIndex : 0,
+      }}
       playsInline
       onLoadedData={handleLoadedData}
       onTimeUpdate={handleTimeUpdate}
@@ -160,13 +166,18 @@ export function VideoPreview({
 
   const [loadedStates, setLoadedStates] = useState<Record<string, boolean>>({});
 
-  // Get all video clips (memoized)
-  const videoClips = useMemo(() => 
-    Array.from(clips.values()).filter((c): c is VideoClip => c.type === "video"),
-    [clips]
-  );
+  // Get all video clips sorted by track order (top track = lower order = higher priority)
+  const videoClips = useMemo(() => {
+    const videos = Array.from(clips.values()).filter((c): c is VideoClip => c.type === "video");
+    // Sort by track order (ascending) so top tracks come first
+    return videos.sort((a, b) => {
+      const trackA = tracks.get(a.trackId);
+      const trackB = tracks.get(b.trackId);
+      return (trackA?.order ?? 999) - (trackB?.order ?? 999);
+    });
+  }, [clips, tracks]);
 
-  // Find the active video clip at current time
+  // Find the active video clip at current time (top track wins)
   const activeVideoClip = useMemo(() => 
     videoClips.find(
       (clip) =>
@@ -234,8 +245,8 @@ export function VideoPreview({
         className="relative flex items-center justify-center overflow-hidden rounded-lg bg-black shadow-2xl"
         style={playerStyle}
       >
-        {/* Render all video clips */}
-        {videoClips.map((clip) => (
+        {/* Render all video clips - layered by track order (top track = higher z-index) */}
+        {videoClips.map((clip, index) => (
           <VideoLayer
             key={clip.id}
             clip={clip}
@@ -245,6 +256,7 @@ export function VideoPreview({
             onTimeUpdate={onTimeUpdate}
             onLoadStatusChange={handleLoadStatusChange}
             trackMuted={tracks.get(clip.trackId)?.muted ?? false}
+            zIndex={videoClips.length - index} // Top track (first in array) gets highest z-index
           />
         ))}
 

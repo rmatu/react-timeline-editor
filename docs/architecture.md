@@ -12,6 +12,10 @@ The application follows a **Uni-directional Data Flow** pattern driven by a cent
     -   Uses `immer` middleware for immutable state updates.
     -   Handles complex logic like `undo`/`redo` history stacks.
 
+-   **Sidepanel State**: `useSidepanelStore` (`src/stores/sidepanelStore.ts`).
+    -   Manages `isOpen`, `activePanel` (id), and `width`.
+    -   Persists state to `localStorage`.
+
 -   **UI Components**: React functional components.
     -   Divided into two main areas: **Preview** (rendering) and **Timeline** (editing).
     -   Components subscribe to specific slices of the store to minimize re-renders (e.g., `useTimelineStore(s => s.currentTime)`).
@@ -42,7 +46,17 @@ The core data structures are defined in `src/schemas/index.ts`.
 
 ### Root (`App.tsx`)
 -   Orchestrates the layout using `ResizablePanel`.
+-   integrates `Sidepanel` alongside the timeline.
 -   Manages the global `ExportSettingsModal`.
+
+### Sidepanel (`src/components/sidepanel`)
+Extensible panel system for secondary tools.
+
+-   **`Sidepanel`**: Main container with resizable width and tab navigation.
+-   **`panelRegistry.ts`**: Central configuration for available panels.
+-   **Panels**:
+    -   **`MediaLibraryPanel`**: File upload, drag & drop to timeline, thumbnail generation.
+    -   **`SRTImportPanel`**: Parsers `.srt` files and creating text clips.
 
 ### Preview Engine (`src/components/preview`)
 Responsible for WYSIWYG playback and rendering.
@@ -179,3 +193,26 @@ Handled in `src/hooks/useClipDrag.ts`.
 -   **Track Switching**:
     -   Dragging vertically calculates which track row the cursor is over.
     -   "Phantom Tracks": Dragging to the very top or bottom creates a temporary drop zone. Dropping there automatically creates a new track.
+
+### Split & Merge
+Clip splitting and merging are handled via store actions (`splitClip`, `mergeClips`).
+
+-   **Split** (`S` key or toolbar button):
+    -   Divides a clip at the current playhead position into two separate clips.
+    -   Validates that the split time is within the clip bounds (not at edges).
+    -   Creates two new clips:
+        -   **Left Clip**: Keeps the original `startTime`, but `duration` ends at split point.
+        -   **Right Clip**: Starts at split point, has adjusted `sourceStartTime` for video/audio clips.
+    -   Both resulting clips are selected after the operation.
+
+-   **Merge** (`M` key or toolbar button):
+    -   Combines two or more selected clips into a single clip.
+    -   Requirements:
+        -   All clips must be the same type.
+        -   All clips must be on the same track.
+        -   Clips must be adjacent (within 0.1s tolerance).
+        -   For video/audio: must have the same `sourceUrl` and contiguous `sourceStartTime` ranges.
+    -   Creates a merged clip spanning the full duration.
+    -   The merged clip is selected after the operation.
+
+-   **Undo/Redo**: Both operations save to history before executing, enabling full undo/redo support.
