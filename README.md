@@ -212,6 +212,35 @@ Playback and zoom controls bar.
 <PreviewControls className?: string />
 ```
 
+#### `<TextOverlay />`
+
+Renders active text clips on top of video preview.
+
+```tsx
+<TextOverlay currentTime={number} />
+```
+
+Text clips are automatically rendered at their configured positions with styles including:
+- Font family, size, weight
+- Color and background color
+- Text alignment and positioning (x, y as percentage)
+- Drop shadow for readability
+
+#### `<ResizablePanel />`
+
+Container with drag handle for resizable height.
+
+```tsx
+<ResizablePanel
+  minHeight={150}        // Minimum height in pixels
+  maxHeight={400}        // Maximum height in pixels
+  defaultHeight={224}    // Initial height
+  onResize={(height) => void}  // Called when resized
+>
+  {children}
+</ResizablePanel>
+```
+
 ### Hooks
 
 #### `useTimelineStore()`
