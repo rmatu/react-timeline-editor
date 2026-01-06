@@ -268,7 +268,7 @@ function App() {
           onPlayPause={togglePlayback}
         />
       </ResizablePanel>
-      <Toaster position="bottom-center" theme="dark" />
+      <Toaster position="top-right" theme="dark" />
       
       <ExportSettingsModal
         isOpen={isExportModalOpen}

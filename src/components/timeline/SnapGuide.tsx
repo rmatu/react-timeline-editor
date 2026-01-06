@@ -15,6 +15,9 @@ export const snapGuideAtom = atom<{
 // Atom to store new track drop target state
 export const newTrackDropTargetAtom = atom<"top" | "bottom" | null>(null);
 
+// Atom to track if current drag would cause a collision
+export const collisionDetectedAtom = atom<boolean>(false);
+
 export function SnapGuide() {
   const [snapGuide] = useAtom(snapGuideAtom);
 

@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { newTrackDropTargetAtom } from "./SnapGuide";
+import { newTrackDropTargetAtom, collisionDetectedAtom } from "./SnapGuide";
 
 interface NewTrackIndicatorProps {
   contentWidth: number;
@@ -8,24 +8,38 @@ interface NewTrackIndicatorProps {
 
 export function NewTrackIndicator({ contentWidth, contentHeight }: NewTrackIndicatorProps) {
   const [target] = useAtom(newTrackDropTargetAtom);
+  const [isCollision] = useAtom(collisionDetectedAtom);
 
   if (!target) return null;
 
   const height = 60; // Default track height
   const top = target === "top" ? 0 : contentHeight;
 
+  // Collision-triggered: amber/warning styling
+  // Normal new track: default zinc styling
+  const borderColor = isCollision ? "border-amber-500" : "border-zinc-500";
+  const bgColor = isCollision ? "bg-amber-900/30" : "bg-zinc-800/50";
+  const badgeBg = isCollision ? "bg-amber-600" : "bg-zinc-700";
+  const badgeText = isCollision ? "text-amber-100" : "text-zinc-200";
+
+  const message = isCollision
+    ? "⚠️ Overlapping – Will Create New Track"
+    : target === "top"
+      ? "Create Track Above"
+      : "Create Track Below";
+
   return (
     <div
-      className="absolute left-0 z-30 flex items-center justify-center border-2 border-dashed border-zinc-500 bg-zinc-800/50 backdrop-blur-sm transition-all"
+      className={`absolute left-0 z-30 flex items-center justify-center border-2 border-dashed ${borderColor} ${bgColor} backdrop-blur-sm transition-all`}
       style={{
         width: contentWidth,
         height,
         top,
       }}
     >
-      <div className="flex items-center gap-2 rounded-full bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 shadow-md">
-        <PlusIcon className="h-4 w-4" />
-        {target === "top" ? "Create Track Above" : "Create Track Below"}
+      <div className={`flex items-center gap-2 rounded-full ${badgeBg} px-4 py-2 text-sm font-medium ${badgeText} shadow-md`}>
+        {!isCollision && <PlusIcon className="h-4 w-4" />}
+        {message}
       </div>
     </div>
   );
