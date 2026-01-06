@@ -10,6 +10,8 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
 - **Gesture Support** - Pinch-to-zoom, scroll, and drag (touch + mouse)
 - **Video Preview** - Synchronized playback with smooth, stutter-free scrubbing
+- **Independent Audio** - Decoupled audio playback for background music and sound effects
+- **Infinite Timeline** - Automatically expands as you add content; manual control via drag handle
 - **Resizable Interface** - Adjustable track height and sidebar width
 - **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
