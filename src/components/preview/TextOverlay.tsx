@@ -22,7 +22,7 @@ export function TextOverlay({ currentTime }: TextOverlayProps) {
   if (activeTextClips.length === 0) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
       {activeTextClips.map((clip) => (
         <div
           key={clip.id}

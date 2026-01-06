@@ -71,3 +71,11 @@ export const TRACK_COLORS = {
   text: "#ffa500",
   sticker: "#da70d6",
 } as const;
+
+export const RESOLUTION_PRESETS = {
+  "16:9": { width: 1920, height: 1080, label: "16:9 (1920x1080)" },
+  "9:16": { width: 1080, height: 1920, label: "9:16 (1080x1920)" },
+  "1:1": { width: 1080, height: 1080, label: "1:1 (1080x1080)" },
+  "4:3": { width: 1440, height: 1080, label: "4:3 (1440x1080)" },
+  "21:9": { width: 2560, height: 1080, label: "21:9 (2560x1080)" },
+} as const;

@@ -2,6 +2,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { usePlayhead } from "@/hooks/usePlayhead";
 import { useZoom } from "@/hooks/useZoom";
 import { formatTimecode } from "@/utils/time";
+import { RESOLUTION_PRESETS } from "@/constants/timeline.constants";
 import { cn } from "@/lib/utils";
 
 interface PreviewControlsProps {
@@ -9,7 +10,7 @@ interface PreviewControlsProps {
 }
 
 export function PreviewControls({ className }: PreviewControlsProps) {
-  const { fps, totalDuration } = useTimelineStore();
+  const { fps, totalDuration, resolution, setResolution } = useTimelineStore();
   const {
     currentTime,
     isPlaying,
@@ -99,8 +100,29 @@ export function PreviewControls({ className }: PreviewControlsProps) {
         <span className="text-zinc-400">{formatTimecode(totalDuration, fps)}</span>
       </div>
 
+      {/* Aspect Ratio Selector */}
+      <div className="flex items-center">
+        <select
+          className="bg-transparent text-xs text-zinc-400 focus:outline-none cursor-pointer hover:text-white transition-colors appearance-none pr-2 text-right"
+          value={Object.entries(RESOLUTION_PRESETS).find(([_, r]) => r.width === resolution.width && r.height === resolution.height)?.[0] || ""}
+          onChange={(e) => {
+            const preset = RESOLUTION_PRESETS[e.target.value as keyof typeof RESOLUTION_PRESETS];
+            if (preset) {
+              setResolution(preset.width, preset.height);
+            }
+          }}
+          title="Aspect Ratio"
+        >
+          {Object.entries(RESOLUTION_PRESETS).map(([key, preset]) => (
+            <option key={key} value={key} className="bg-zinc-800">
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Zoom Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 border-l border-zinc-700 pl-4">
         <button
           className="rounded p-1.5 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
           onClick={() => zoomOut()}
@@ -112,7 +134,7 @@ export function PreviewControls({ className }: PreviewControlsProps) {
         </button>
 
         <button
-          className="rounded px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+          className="rounded px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white min-w-[3rem] text-center"
           onClick={resetZoom}
           title="Reset zoom"
         >
