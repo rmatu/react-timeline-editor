@@ -16,22 +16,25 @@ export default defineConfig(({ mode }) => {
     },
     build: isLib
       ? {
-          lib: {
-            entry: resolve(__dirname, "src/index.ts"),
-            name: "ReactVideoTimeline",
-            fileName: "index",
-            formats: ["es"],
-          },
-          rollupOptions: {
-            external: ["react", "react-dom", "react/jsx-runtime"],
-            output: {
-              globals: {
-                react: "React",
-                "react-dom": "ReactDOM",
-              },
+        lib: {
+          entry: resolve(__dirname, "src/index.ts"),
+          name: "ReactVideoTimeline",
+          fileName: "index",
+          formats: ["es"],
+        },
+        rollupOptions: {
+          external: ["react", "react-dom", "react/jsx-runtime"],
+          output: {
+            globals: {
+              react: "React",
+              "react-dom": "ReactDOM",
             },
           },
-        }
+        },
+      }
       : undefined,
+    optimizeDeps: {
+      exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
+    },
   };
 });
