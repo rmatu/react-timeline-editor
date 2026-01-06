@@ -172,7 +172,7 @@ export const Clip = memo(function Clip({
         {width > 60 && clip.type !== "text" && (
           <div className="absolute inset-x-2 top-1 truncate text-xs font-medium text-white/80">
             {clip.type === "video" || clip.type === "audio"
-              ? getFileName((clip as any).sourceUrl)
+              ? (clip as any).name || getFileName((clip as any).sourceUrl)
               : clip.type}
           </div>
         )}

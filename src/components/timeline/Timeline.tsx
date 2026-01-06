@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useTimelineStore } from "@/stores/timelineStore";
+import { useSidepanelStore } from "@/stores/sidepanelStore";
 import { TimelineViewport } from "./TimelineViewport";
 import { TimeRuler } from "./TimeRuler";
 import { Playhead } from "./Playhead";
@@ -129,6 +130,7 @@ export function Timeline({
         store.mergeClips(store.selectedClipIds);
       }
     },
+    onToggleSidepanel: () => useSidepanelStore.getState().toggle(),
   });
 
   // Sync playback with animation frame
@@ -236,6 +238,7 @@ export function Timeline({
           contentHeight={contentHeight}
           scrollX={scrollX}
           scrollY={scrollY}
+          zoomLevel={zoomLevel}
           onClick={handleTimelineClick}
           className="flex-1"
         >

@@ -12,6 +12,10 @@ The application follows a **Uni-directional Data Flow** pattern driven by a cent
     -   Uses `immer` middleware for immutable state updates.
     -   Handles complex logic like `undo`/`redo` history stacks.
 
+-   **Sidepanel State**: `useSidepanelStore` (`src/stores/sidepanelStore.ts`).
+    -   Manages `isOpen`, `activePanel` (id), and `width`.
+    -   Persists state to `localStorage`.
+
 -   **UI Components**: React functional components.
     -   Divided into two main areas: **Preview** (rendering) and **Timeline** (editing).
     -   Components subscribe to specific slices of the store to minimize re-renders (e.g., `useTimelineStore(s => s.currentTime)`).
@@ -42,7 +46,17 @@ The core data structures are defined in `src/schemas/index.ts`.
 
 ### Root (`App.tsx`)
 -   Orchestrates the layout using `ResizablePanel`.
+-   integrates `Sidepanel` alongside the timeline.
 -   Manages the global `ExportSettingsModal`.
+
+### Sidepanel (`src/components/sidepanel`)
+Extensible panel system for secondary tools.
+
+-   **`Sidepanel`**: Main container with resizable width and tab navigation.
+-   **`panelRegistry.ts`**: Central configuration for available panels.
+-   **Panels**:
+    -   **`MediaLibraryPanel`**: File upload, drag & drop to timeline, thumbnail generation.
+    -   **`SRTImportPanel`**: Parsers `.srt` files and creating text clips.
 
 ### Preview Engine (`src/components/preview`)
 Responsible for WYSIWYG playback and rendering.

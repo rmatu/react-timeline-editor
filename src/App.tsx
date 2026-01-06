@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
+import { PanelLeft } from "lucide-react";
 import { Timeline } from "@/components/timeline";
 import { VideoPreview, PreviewControls } from "@/components/preview";
 import { ResizablePanel } from "@/components/ResizablePanel";
+import { Sidepanel } from "@/components/sidepanel";
 import { useTimelineStore } from "@/stores/timelineStore";
+import { useSidepanelStore } from "@/stores/sidepanelStore";
 import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, TextClip } from "@/schemas";
 import { exportToMp4 } from "@/utils/ffmpegExporter";
@@ -114,6 +117,7 @@ function App() {
   } = useTimelineStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const toggleSidepanel = useSidepanelStore((s) => s.toggle);
 
   const handleExportJson = () => {
     const data = exportTimeline();
@@ -193,9 +197,18 @@ function App() {
     <div className="flex h-screen flex-col bg-zinc-950">
       {/* Header */}
       <header className="flex h-12 items-center justify-between border-b border-zinc-800 px-4">
-        <h1 className="text-lg font-semibold text-white">
-          React Video Timeline
-        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleSidepanel}
+            title="Toggle sidepanel ([)"
+            className="flex items-center justify-center w-8 h-8 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+          >
+            <PanelLeft size={18} />
+          </button>
+          <h1 className="text-lg font-semibold text-white">
+            React Video Timeline
+          </h1>
+        </div>
         <div className="flex items-center gap-4 text-xs text-zinc-500">
           <span>Drag clips to move</span>
           <span>•</span>
@@ -221,19 +234,25 @@ function App() {
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Video Preview Area - min-h-0 allows it to shrink properly */}
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-zinc-900 p-4">
-          <VideoPreview
-            currentTime={currentTime}
-            isPlaying={isPlaying}
-            onTimeUpdate={setCurrentTime}
-            className="max-h-full"
-          />
-        </div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidepanel */}
+        <Sidepanel />
 
-        {/* Preview Controls - flex-shrink-0 ensures it's always visible */}
-        <PreviewControls className="mx-4 mb-2 flex-shrink-0" />
+        {/* Content Area */}
+        <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+          {/* Video Preview Area - min-h-0 allows it to shrink properly */}
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-zinc-900 p-4">
+            <VideoPreview
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              onTimeUpdate={setCurrentTime}
+              className="max-h-full"
+            />
+          </div>
+
+          {/* Preview Controls - flex-shrink-0 ensures it's always visible */}
+          <PreviewControls className="mx-4 mb-2 flex-shrink-0" />
+        </div>
       </div>
 
       {/* Timeline - now resizable */}

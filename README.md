@@ -13,8 +13,9 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Video Preview** - Synchronized playback with smooth, stutter-free scrubbing
 - **Independent Audio** - Decoupled audio playback for background music and sound effects
 - **Infinite Timeline** - Automatically expands as you add content; manual control via drag handle
-- **Resizable Interface** - Adjustable track height and sidebar width
-- **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
+-   **Resizable Interface** - Adjustable track height and sidebar width
+-   **Media Sidepanel** - Drag-and-drop media library and SRT subtitle import
+-   **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
 - **Export Functionality** - Client-side MP4 export via FFmpeg.wasm with configurable resolution, FPS, and quality settings
 - **Video Thumbnails** - Dynamic visual timeline with generated frame previews for video clips
@@ -409,6 +410,7 @@ if (result.success) {
 | `Escape` | Deselect all |
 | `+` / `=` | Zoom in |
 | `-` | Zoom out |
+| `[` | Toggle Sidepanel |
 | `Arrow Left/Right` | Navigate timeline |
 
 ## Gesture Controls
