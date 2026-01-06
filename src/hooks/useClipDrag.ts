@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useAtom } from "jotai";
 import { useTimelineStore } from "@/stores/timelineStore";
-import { snapGuideAtom, showSnapGuide, hideSnapGuide } from "@/components/timeline/SnapGuide";
+import { snapGuideAtom, showSnapGuide, hideSnapGuide, newTrackDropTargetAtom } from "@/components/timeline/SnapGuide";
 import {
   generateSnapPoints,
   snapClipPosition,
@@ -10,7 +10,7 @@ import {
 } from "@/utils/snapping";
 import { pixelsToTime, timeToPixels } from "@/utils/time";
 import { SNAP_THRESHOLD_PX } from "@/constants/timeline.constants";
-import type { Clip } from "@/schemas";
+import { Clip, createTrack } from "@/schemas";
 
 interface UseClipDragOptions {
   clip: Clip;
@@ -20,11 +20,17 @@ interface UseClipDragOptions {
 
 export function useClipDrag({ clip, zoomLevel, disabled = false }: UseClipDragOptions) {
   const [isDragging, setIsDragging] = useState(false);
-  const [dragPosition, setDragPosition] = useState<number | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [, setSnapGuide] = useAtom(snapGuideAtom);
+  const [, setNewTrackDropTarget] = useAtom(newTrackDropTargetAtom);
   const initialTimeRef = useRef(clip.startTime);
 
+  // Track layout refs
+  const trackLayoutRef = useRef<{ id: string; top: number; height: number; order: number }[]>([]);
+  const startTrackTopRef = useRef<number>(0);
+
   const {
+    tracks,
     clips,
     currentTime,
     totalDuration,
@@ -33,47 +39,58 @@ export function useClipDrag({ clip, zoomLevel, disabled = false }: UseClipDragOp
     saveToHistory,
     selectClip,
     selectedClipIds,
+    addTrack,
+    reorderTracks,
   } = useTimelineStore();
 
   const bind = useDrag(
-    ({ movement: [mx], first, last, cancel, memo }) => {
+    ({ movement: [mx, my], first, last, cancel, memo }) => {
       if (disabled) {
         cancel();
         return;
       }
 
       if (first) {
-        // Store initial position
+        // Capture initial state
         initialTimeRef.current = clip.startTime;
         setIsDragging(true);
         setDragging(true, clip.id);
         saveToHistory();
 
-        // Always select this clip, replacing previous selection unless it's already selected
-        // This ensures clicking a new clip deselects previous ones
+        // Calculate track layout
+        const sortedTracks = Array.from(tracks.values()).sort((a, b) => a.order - b.order);
+        let currentTop = 0;
+        trackLayoutRef.current = sortedTracks.map((t) => {
+          const layout = { id: t.id, top: currentTop, height: t.height, order: t.order };
+          currentTop += t.height;
+          return layout;
+        });
+
+        const currentTrackLayout = trackLayoutRef.current.find(t => t.id === clip.trackId);
+        startTrackTopRef.current = currentTrackLayout?.top || 0;
+
         if (!selectedClipIds.includes(clip.id)) {
           selectClip(clip.id, false);
         }
 
-        return clip.startTime;
+        return { startTime: clip.startTime, startY: 0 };
       }
 
-      const startTime = (memo as number) ?? clip.startTime;
+      const memoized = memo as { startTime: number; startY: number };
+      const startTime = memoized?.startTime ?? clip.startTime;
+
+      // Horizontal positioning logic (Time)
       const deltaTime = pixelsToTime(mx, zoomLevel);
       let newStartTime = Math.max(0, startTime + deltaTime);
 
-      // Generate snap points
+      // Snap logic
       const snapPoints = generateSnapPoints(
         Array.from(clips.values()),
         clip.id,
         currentTime,
         totalDuration
       );
-
-      // Calculate snap threshold based on zoom
       const snapThreshold = calculateSnapThreshold(zoomLevel, SNAP_THRESHOLD_PX);
-
-      // Try to snap
       const snapResult = snapClipPosition(
         newStartTime,
         clip.duration,
@@ -89,27 +106,97 @@ export function useClipDrag({ clip, zoomLevel, disabled = false }: UseClipDragOp
         hideSnapGuide(setSnapGuide);
       }
 
-      // Clamp to timeline bounds
       newStartTime = Math.max(0, Math.min(totalDuration - clip.duration, newStartTime));
+      const newX = timeToPixels(newStartTime, zoomLevel);
 
-      // Update drag position for visual feedback
-      setDragPosition(timeToPixels(newStartTime, zoomLevel));
+      // Vertical positioning logic (Tracks)
+      const currentAbsY = startTrackTopRef.current + my;
+      let targetTrackId = clip.trackId;
+      let visualY = my;
+      let newDropTarget: "top" | "bottom" | null = null;
+
+      const lastTrackLayout = trackLayoutRef.current[trackLayoutRef.current.length - 1];
+      const bottomThreshold = lastTrackLayout ? lastTrackLayout.top + lastTrackLayout.height : 0;
+
+      // Determine target track
+      // If above the first track by at least half a track height
+      if (currentAbsY < -30) {
+        targetTrackId = "NEW_TOP";
+        newDropTarget = "top";
+        // Snap visual Y to the top edge (absolute 0) so it's visible
+        visualY = -startTrackTopRef.current;
+      } else if (lastTrackLayout && currentAbsY > bottomThreshold + 10) {
+        // If below the last track:
+        targetTrackId = "NEW_BOTTOM";
+        newDropTarget = "bottom";
+        // Snap visual Y to the "new track" position (phantom track below)
+        visualY = (bottomThreshold - startTrackTopRef.current) + 10;
+      } else {
+        // Find track under cursor
+        const targetLayout = trackLayoutRef.current.find(
+          t => currentAbsY >= t.top && currentAbsY < t.top + t.height
+        );
+
+        if (targetLayout) {
+          targetTrackId = targetLayout.id;
+          // Snap visual Y to target track
+          visualY = targetLayout.top - startTrackTopRef.current;
+        }
+      }
+
+      setDragPosition({ x: newX, y: visualY });
+      setNewTrackDropTarget(newDropTarget);
 
       if (last) {
-        // Commit the move
-        moveClip(clip.id, newStartTime);
+        setNewTrackDropTarget(null);
+        // Commit changes
+        if (targetTrackId === "NEW_TOP") {
+          // Create new track at top
+          const newTrack = createTrack({
+            name: `Track ${tracks.size + 1}`,
+            type: clip.type, // Same type as clip
+            order: 0
+          });
+          addTrack(newTrack);
+
+          // Reorder existing tracks
+          const allTrackIds = Array.from(tracks.values())
+            .sort((a, b) => a.order - b.order)
+            .map(t => t.id);
+          reorderTracks([newTrack.id, ...allTrackIds]);
+
+          moveClip(clip.id, newStartTime, newTrack.id);
+        } else if (targetTrackId === "NEW_BOTTOM") {
+          // Create new track at bottom
+          const sortedTracks = Array.from(tracks.values()).sort((a, b) => a.order - b.order);
+          const lastOrder = sortedTracks.length > 0 ? sortedTracks[sortedTracks.length - 1].order : -1;
+
+          const newTrack = createTrack({
+            name: `Track ${tracks.size + 1}`,
+            type: clip.type,
+            order: lastOrder + 1
+          });
+          addTrack(newTrack);
+          moveClip(clip.id, newStartTime, newTrack.id);
+        } else if (targetTrackId !== clip.trackId) {
+          moveClip(clip.id, newStartTime, targetTrackId);
+        } else {
+          moveClip(clip.id, newStartTime);
+        }
+
         setIsDragging(false);
         setDragging(false);
         setDragPosition(null);
         hideSnapGuide(setSnapGuide);
       }
 
-      return memo;
+      return memoized;
     },
     {
       filterTaps: true,
       threshold: 5,
       pointer: { touch: true },
+      // lockDirection: false // Allow free movement
     }
   );
 

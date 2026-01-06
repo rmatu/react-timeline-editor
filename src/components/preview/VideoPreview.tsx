@@ -16,14 +16,16 @@ export function VideoPreview({
   const [error, setError] = useState<string | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
 
-  const { clips, resolution } = useTimelineStore();
+  const { clips, tracks, resolution } = useTimelineStore();
 
   // Find the active video clip at current time
   const activeVideoClip = Array.from(clips.values()).find(
     (clip): clip is VideoClip =>
       clip.type === "video" &&
       currentTime >= clip.startTime &&
-      currentTime < clip.startTime + clip.duration
+      currentTime >= clip.startTime &&
+      currentTime < clip.startTime + clip.duration &&
+      tracks.get(clip.trackId)?.visible !== false
   );
 
   // Calculate video time from timeline time
@@ -150,13 +152,13 @@ export function VideoPreview({
         </div>
       )}
 
-      {/* Error state */}
+      {/* Error state - subtle indicator */}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-red-400">
-            <div className="mb-2 text-2xl">!</div>
-            <div className="text-sm">{error}</div>
-          </div>
+        <div className="absolute top-4 right-4 flex items-center gap-2 rounded bg-red-900/80 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Unable to load video
         </div>
       )}
 

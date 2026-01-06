@@ -55,12 +55,11 @@ export function Playhead({
   return (
     <div
       className={cn(
-        "playhead absolute top-0 z-50",
+        "playhead absolute top-0 bottom-0 z-50",
         isDragging.current && "cursor-grabbing"
       )}
       style={{
         left: x,
-        height: height + PLAYHEAD_HEAD_SIZE,
         transform: "translateX(-50%)",
       }}
       onClick={handleClick}
@@ -68,14 +67,17 @@ export function Playhead({
       {/* Playhead handle (draggable) */}
       <div
         {...bind()}
-        className="playhead-handle absolute -top-3 left-1/2 -translate-x-1/2 cursor-grab"
+        className="playhead-handle absolute top-0 left-1/2 -translate-x-1/2 cursor-grab pointer-events-auto z-50 group"
         style={{ touchAction: "none" }}
       >
+        {/* Hit area for easier grabbing */}
+        <div className="absolute -top-4 -left-4 right-4 bottom-4 w-8 h-8 opacity-0" />
+        
         <svg
           width={PLAYHEAD_HEAD_SIZE}
           height={PLAYHEAD_HEAD_SIZE}
           viewBox="0 0 12 12"
-          className="fill-red-500"
+          className="fill-red-500 transition-transform group-hover:scale-110"
         >
           <path d="M6 12L0 4V0H12V4L6 12Z" />
         </svg>
@@ -83,21 +85,17 @@ export function Playhead({
 
       {/* Playhead line */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 bg-red-500"
+        className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 bg-red-500 pointer-events-none"
         style={{
           width: PLAYHEAD_WIDTH,
-          height,
-          top: 0,
         }}
       />
 
       {/* Playhead shadow for better visibility */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 bg-red-500/20"
+        className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 bg-red-500/20 pointer-events-none"
         style={{
           width: 6,
-          height,
-          top: 0,
         }}
       />
     </div>

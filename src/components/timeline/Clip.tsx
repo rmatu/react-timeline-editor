@@ -91,7 +91,8 @@ export const Clip = memo(function Clip({
   );
 
   // Determine actual position (accounting for drag)
-  const actualLeft = isDragging && dragPosition !== null ? dragPosition : left;
+  const actualLeft = isDragging && dragPosition ? dragPosition.x : left;
+  const actualTop = isDragging && dragPosition ? dragPosition.y : 0;
 
   // Get clip color based on type
   const clipColor = track.color || TRACK_COLORS[clip.type];
@@ -119,17 +120,18 @@ export const Clip = memo(function Clip({
           isSelected
             ? "border-blue-500 shadow-lg shadow-blue-500/20"
             : "border-transparent hover:border-white/20",
-          isDragging && "dragging opacity-80 shadow-xl",
+          isDragging && "dragging opacity-80 shadow-xl z-50", // Increased z-index
           isTrimming && "z-20",
           disabled && "cursor-not-allowed"
         )}
         style={{
           left: actualLeft,
+          transform: actualTop ? `translateY(${actualTop}px)` : undefined,
           width: Math.max(width, 4), // Minimum visible width
           borderRadius: CLIP_BORDER_RADIUS,
           backgroundColor: clipColor,
           touchAction: "none",
-          willChange: isDragging ? "transform" : "auto",
+          willChange: isDragging ? "transform, left" : "auto",
         }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}

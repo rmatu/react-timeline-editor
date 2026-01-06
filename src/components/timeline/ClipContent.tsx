@@ -55,6 +55,7 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
             className="h-full flex-shrink-0 object-cover opacity-60"
             style={{ width: thumbWidth }}
             loading="lazy"
+            draggable={false}
           />
         );
       })}
@@ -143,6 +144,7 @@ function StickerClipContent({ clip }: { clip: StickerClip; width: number }) {
           opacity: clip.opacity,
         }}
         loading="lazy"
+        draggable={false}
       />
     </div>
   );

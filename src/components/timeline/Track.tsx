@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, memo } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { Clip as ClipComponent } from "./Clip";
 import { cn } from "@/lib/utils";
@@ -14,15 +14,17 @@ interface TrackProps {
   selectedClipIds: string[];
 }
 
-// Removed memo temporarily to fix selection re-rendering issue
-export function Track({
+export const Track = memo(function Track({
   track,
   clips,
   zoomLevel,
   scrollX,
   selectedClipIds,
 }: TrackProps) {
-  const { selectedTrackId, selectTrack, selectClip } = useTimelineStore();
+  const selectedTrackId = useTimelineStore((state) => state.selectedTrackId);
+  const selectTrack = useTimelineStore((state) => state.selectTrack);
+  const selectClip = useTimelineStore((state) => state.selectClip);
+  
   const isSelected = selectedTrackId === track.id;
 
   // Filter to only visible clips for performance
@@ -91,4 +93,4 @@ export function Track({
       )}
     </div>
   );
-}
+});

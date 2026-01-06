@@ -10,7 +10,8 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
 - **Gesture Support** - Pinch-to-zoom, scroll, and drag (touch + mouse)
 - **Video Preview** - Synchronized playback with smooth, stutter-free scrubbing
-- **Resizable Panels** - Adjustable timeline height with drag handle
+- **Resizable Interface** - Adjustable track height and sidebar width
+- **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
 - **Undo/Redo** - Full history management for all editing operations
 - **Type Safety** - Full TypeScript support with Zod runtime validation
@@ -412,6 +413,9 @@ if (result.success) {
 | **Drag trim handle** | Trim clip |
 | **Click on ruler** | Seek to position |
 | **Drag playhead** | Scrub timeline |
+| **Drag track bottom** | Resize track height |
+| **Drag sidebar edge** | Resize track header width |
+| **Double-click track** | Rename track |
 
 ## Constants
 

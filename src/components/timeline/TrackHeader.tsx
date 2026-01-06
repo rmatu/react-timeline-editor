@@ -1,5 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
+import { useDrag } from "@use-gesture/react";
 import { useTimelineStore } from "@/stores/timelineStore";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { TRACK_COLORS } from "@/constants/timeline.constants";
 import type { Track } from "@/schemas";
@@ -9,12 +11,57 @@ interface TrackHeaderProps {
 }
 
 export function TrackHeader({ track }: TrackHeaderProps) {
-  const { selectedTrackId, selectTrack, updateTrack } = useTimelineStore();
+  const { selectedTrackId, selectTrack, updateTrack, removeTrack, saveToHistory, undo } = useTimelineStore();
   const isSelected = selectedTrackId === track.id;
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(track.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
 
   const handleClick = useCallback(() => {
     selectTrack(track.id);
   }, [track.id, selectTrack]);
+
+  const handleNameDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditedName(track.name);
+  }, [track.name]);
+
+  const handleNameSubmit = useCallback(() => {
+    setIsEditing(false);
+    if (editedName.trim() && editedName !== track.name) {
+      updateTrack(track.id, { name: editedName.trim() });
+    } else {
+      setEditedName(track.name); // Revert if empty
+    }
+  }, [editedName, track.name, track.id, updateTrack]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleNameSubmit();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditedName(track.name);
+    }
+  }, [handleNameSubmit, track.name]);
+
+  // Resize handler
+  const bindResize = useDrag(({ delta: [, dy], first, last }) => {
+    if (first) document.body.style.cursor = "row-resize";
+    if (last) document.body.style.cursor = "";
+    
+    const newHeight = Math.max(40, track.height + dy);
+    updateTrack(track.id, { height: newHeight });
+  });
 
   const handleToggleMute = useCallback(
     (e: React.MouseEvent) => {
@@ -40,10 +87,29 @@ export function TrackHeader({ track }: TrackHeaderProps) {
     [track.id, track.locked, updateTrack]
   );
 
+  const handleDelete = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      // Save state before deleting for undo
+      saveToHistory();
+      removeTrack(track.id);
+
+      toast.success("Track deleted", {
+        description: `${track.name} has been removed.`,
+        action: {
+          label: "Undo",
+          onClick: () => undo(),
+        },
+      });
+    },
+    [track.id, track.name, removeTrack, saveToHistory, undo]
+  );
+
   return (
     <div
       className={cn(
-        "flex items-center gap-2 border-b border-zinc-700 px-2 transition-colors",
+        "group relative flex items-center gap-2 border-b border-zinc-700 px-2 transition-colors",
         isSelected ? "bg-zinc-700" : "bg-zinc-800 hover:bg-zinc-750"
       )}
       style={{ height: track.height }}
@@ -55,8 +121,26 @@ export function TrackHeader({ track }: TrackHeaderProps) {
         style={{ backgroundColor: track.color || TRACK_COLORS[track.type] }}
       />
 
-      {/* Track name */}
-      <span className="flex-1 truncate text-sm text-zinc-200">{track.name}</span>
+      {/* Track name (editable) */}
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          className="flex-1 min-w-0 bg-zinc-900 border border-zinc-600 rounded px-1 py-0.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+          value={editedName}
+          onChange={(e) => setEditedName(e.target.value)}
+          onBlur={handleNameSubmit}
+          onKeyDown={handleKeyDown}
+          onClick={(e) => e.stopPropagation()} // Prevent selecting track on input click
+        />
+      ) : (
+        <span 
+          className="flex-1 truncate text-sm text-zinc-200 cursor-text select-none"
+          onDoubleClick={handleNameDoubleClick}
+          title="Double click to rename"
+        >
+          {track.name}
+        </span>
+      )}
 
       {/* Track controls */}
       <div className="flex items-center gap-1">
@@ -82,7 +166,7 @@ export function TrackHeader({ track }: TrackHeaderProps) {
               track.muted
                 ? "bg-red-900/50 text-red-400"
                 : "text-zinc-400 hover:bg-zinc-600 hover:text-zinc-200"
-            )}
+              )}
             onClick={handleToggleMute}
             title={track.muted ? "Unmute" : "Mute"}
           >
@@ -103,7 +187,22 @@ export function TrackHeader({ track }: TrackHeaderProps) {
         >
           <LockIcon className="h-3 w-3" locked={track.locked} />
         </button>
+
+        {/* Delete track */}
+        <button
+          className="rounded p-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-600 hover:text-red-400"
+          onClick={handleDelete}
+          title="Delete track"
+        >
+          <TrashIcon className="h-3 w-3" />
+        </button>
       </div>
+
+      {/* Resize Handle */}
+      <div
+        {...bindResize()}
+        className="absolute bottom-0 left-0 right-0 h-1.5 cursor-row-resize opacity-0 transition-opacity hover:bg-blue-500/50 group-hover:opacity-100 z-10"
+      />
     </div>
   );
 }
@@ -154,6 +253,19 @@ function LockIcon({ className, locked }: { className?: string; locked: boolean }
     <svg className={className} viewBox="0 0 16 16" fill="currentColor">
       <rect x="2" y="7" width="12" height="8" rx="1" />
       <path d="M4 7V5a4 4 0 0 1 8 0" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="currentColor">
+      <path
+        fillRule="evenodd"
+        d="M5 3.25V3H11V3.25H14.5V4.75H13.848L13.196 13.68C13.129 14.596 12.366 15.303 11.448 15.303H4.552C3.634 15.303 2.871 14.596 2.804 13.68L2.152 4.75H1.5V3.25H5ZM6.5 3H9.5V1.75H6.5V3ZM3.66 4.75L4.298 13.57C4.308 13.722 4.436 13.84 4.552 13.84H11.448C11.564 13.84 11.692 13.722 11.702 13.57L12.34 4.75H3.66Z"
+        clipRule="evenodd"
+      />
+      <path d="M6 7H7.5V12H6V7Z" />
+      <path d="M8.5 7H10V12H8.5V7Z" />
     </svg>
   );
 }
