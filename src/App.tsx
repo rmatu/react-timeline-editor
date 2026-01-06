@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Toaster } from "sonner";
 import { Timeline } from "@/components/timeline";
 import { VideoPreview, PreviewControls } from "@/components/preview";
 import { ResizablePanel } from "@/components/ResizablePanel";
@@ -157,6 +158,7 @@ function App() {
           onPlayPause={togglePlayback}
         />
       </ResizablePanel>
+      <Toaster position="bottom-center" theme="dark" />
     </div>
   );
 }

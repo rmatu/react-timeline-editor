@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { calculateRulerInterval, formatRulerLabel } from "@/utils/time";
 import { cn } from "@/lib/utils";
 
@@ -6,15 +6,13 @@ interface TimeRulerProps {
   duration: number;
   zoomLevel: number;
   scrollX: number;
-  currentTime: number;
   onClick?: (e: React.MouseEvent) => void;
 }
 
-export function TimeRuler({
+export const TimeRuler = memo(function TimeRuler({
   duration,
   zoomLevel,
   scrollX,
-  currentTime,
   onClick,
 }: TimeRulerProps) {
   const { majorInterval, minorDivisions } = useMemo(
@@ -81,12 +79,6 @@ export function TimeRuler({
           )}
         </div>
       ))}
-
-      {/* Current time indicator on ruler */}
-      <div
-        className="absolute top-0 bottom-0 w-0.5 bg-red-500"
-        style={{ left: currentTime * zoomLevel - scrollX }}
-      />
     </div>
   );
-}
+});

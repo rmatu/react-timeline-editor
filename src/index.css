@@ -115,3 +115,12 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* Global utility */
+button,
+select,
+input[type="button"],
+input[type="submit"],
+.clickable {
+  cursor: pointer;
+}

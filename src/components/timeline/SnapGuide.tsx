@@ -12,6 +12,9 @@ export const snapGuideAtom = atom<{
   visible: false,
 });
 
+// Atom to store new track drop target state
+export const newTrackDropTargetAtom = atom<"top" | "bottom" | null>(null);
+
 export function SnapGuide() {
   const [snapGuide] = useAtom(snapGuideAtom);
 
