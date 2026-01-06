@@ -1,0 +1,60 @@
+{
+  "name": "react-video-timeline",
+  "version": "0.1.0",
+  "description": "A React component library for video timeline editing",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:lib": "tsc -b && vite build --mode lib",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "zustand": "^5.0.0",
+    "jotai": "^2.10.0",
+    "zod": "^3.24.0",
+    "@tanstack/react-virtual": "^3.11.0",
+    "@use-gesture/react": "^10.3.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.6.0",
+    "immer": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "typescript": "~5.7.0",
+    "vite": "^6.0.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0"
+  },
+  "keywords": [
+    "react",
+    "video",
+    "timeline",
+    "editor",
+    "video-editing"
+  ],
+  "license": "MIT"
+}

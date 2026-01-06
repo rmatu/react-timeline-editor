@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --timeline-bg: #1a1a1a;
+  --track-bg: #242424;
+  --track-border: #333333;
+  --clip-video: #4a90d9;
+  --clip-audio: #50c878;
+  --clip-text: #ffa500;
+  --clip-sticker: #da70d6;
+  --playhead-color: #ff4444;
+  --snap-guide-color: #ffcc00;
+  --selection-color: #3b82f6;
+  --handle-color: #3b82f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0a0a0a;
+  color: #ffffff;
+}
+
+/* Timeline specific styles */
+.timeline-container {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Smooth scrolling for timeline */
+.timeline-viewport {
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* GPU acceleration for clip transforms */
+.clip {
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+.clip.dragging {
+  will-change: transform;
+}
+
+/* Marching ants animation for ghost outline */
+@keyframes marching-ants {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 16;
+  }
+}
+
+.ghost-outline {
+  stroke-dasharray: 8 8;
+  animation: marching-ants 0.5s linear infinite;
+}
+
+/* Snap guide pulse animation */
+@keyframes snap-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.snap-guide {
+  animation: snap-pulse 0.3s ease-in-out;
+}
+
+/* Playhead styles */
+.playhead {
+  pointer-events: none;
+  z-index: 50;
+}
+
+.playhead-handle {
+  pointer-events: auto;
+  cursor: ew-resize;
+}
+
+/* Trim handle touch area expansion */
+.trim-handle {
+  touch-action: none;
+}
+
+.trim-handle::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+
+/* Waveform canvas optimization */
+.waveform-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
