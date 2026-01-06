@@ -1,6 +1,6 @@
+import React from 'react';
 import { Film, Subtitles, type LucideIcon } from 'lucide-react';
-import { MediaLibraryPanel } from './panels/MediaLibraryPanel';
-import { SRTImportPanel } from './panels/SRTImportPanel';
+import { MediaLibraryPanel, SRTImportPanel } from './panels';
 
 export interface SidepanelConfig {
   id: string;

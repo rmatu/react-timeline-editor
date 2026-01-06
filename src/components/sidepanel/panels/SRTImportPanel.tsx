@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Upload, FileText, Trash2, Download, AlertCircle } from 'lucide-react';
 import { useTimelineStore } from '@/stores/timelineStore';
 import { createTrack } from '@/schemas';

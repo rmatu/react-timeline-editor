@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Upload, Film, Music, Trash2, Plus, GripVertical } from 'lucide-react';
 import { useTimelineStore } from '@/stores/timelineStore';
 import { createTrack } from '@/schemas';
