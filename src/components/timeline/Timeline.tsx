@@ -4,6 +4,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { TimelineViewport } from "./TimelineViewport";
 import { TimeRuler } from "./TimeRuler";
 import { Playhead } from "./Playhead";
+import { DurationHandle } from "./DurationHandle";
 import { Track } from "./Track";
 import { TrackHeader } from "./TrackHeader";
 import { SnapGuide } from "./SnapGuide";
@@ -257,6 +258,11 @@ export function Timeline({
             scrollX={scrollX}
             height={contentHeight + RULER_HEIGHT} // Approximate, ideally full height
             onSeek={onTimeChange}
+          />
+          <DurationHandle
+            zoomLevel={zoomLevel}
+            totalDuration={totalDuration}
+            scrollX={scrollX}
           />
         </div>
       </div>

@@ -106,7 +106,7 @@ export function useClipDrag({ clip, zoomLevel, disabled = false }: UseClipDragOp
         hideSnapGuide(setSnapGuide);
       }
 
-      newStartTime = Math.max(0, Math.min(totalDuration - clip.duration, newStartTime));
+      newStartTime = Math.max(0, newStartTime);
       const newX = timeToPixels(newStartTime, zoomLevel);
 
       // Vertical positioning logic (Tracks)
