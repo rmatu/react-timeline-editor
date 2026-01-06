@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useRef } from "react";
+import { Type } from "lucide-react";
 import type { Clip, VideoClip, AudioClip, TextClip, StickerClip } from "@/schemas";
 import { useAudioWaveform } from "@/hooks/useAudioWaveform";
 
@@ -265,14 +266,19 @@ function AudioClipContent({ clip, width }: { clip: AudioClip; width: number }) {
 }
 
 // Text clip: content preview
-function TextClipContent({ clip }: { clip: TextClip; width: number }) {
+function TextClipContent({ clip, width }: { clip: TextClip; width: number }) {
+  // Only show icon if there's enough room
+  const showIcon = width > 30;
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center overflow-hidden px-2">
+    <div className="absolute inset-0 flex items-center justify-start px-2 gap-1.5 pointer-events-none">
+      {showIcon && <Type size={12} className="text-white/80 shrink-0" strokeWidth={2.5} />}
       <span
-        className="truncate text-center text-sm font-medium"
+        className="truncate text-xs font-semibold leading-none drop-shadow-sm"
         style={{
-          color: clip.color,
+          color: "white", // Force white text for better contrast on colored bars
           fontFamily: clip.fontFamily,
+          textShadow: "0 1px 2px rgba(0,0,0,0.3)",
         }}
       >
         {clip.content || "Text"}
