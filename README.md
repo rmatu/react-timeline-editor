@@ -18,7 +18,10 @@ A high-performance, touch-friendly React component library for video timeline ed
 -   **Media Sidepanel** - Drag-and-drop media library and SRT subtitle import
 -   **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
-- **Export Functionality** - Client-side MP4 export via FFmpeg.wasm with configurable resolution, FPS, and quality settings
+- **Export Functionality** - Unified export engine with hybrid pipeline:
+  - **Hardware Acceleration**: Up to 10x faster export using WebCodecs (GPU)
+  - **Software Fallback**: Robust FFmpeg WASM encoding for compatibility
+  - **Customizable**: Configurable resolution (up to 4K), FPS (up to 60), and quality
 - **Video Thumbnails** - Dynamic visual timeline with robust, generated frame previews for video clips
 - **Undo/Redo** - Full history management for all editing operations
 - **Type Safety** - Full TypeScript support with Zod runtime validation

@@ -121,22 +121,27 @@ Visualization of media on the timeline is handled asynchronously to ensure perfo
     -   Logic encapsulated in `useAudioWaveform` hook.
 
 ### Export Pipeline
-The app uses a unified export system (in `src/utils/export/`):
+The app uses a unified export system (in `src/utils/export/`) with a hybrid engine approach:
 
-**Architecture:**
--   **`RenderEngine`** (`renderEngine.ts`):
-    -   Central rendering class that mirrors `VideoPreview.tsx` behavior.
-    -   Renders all layers (video, text, stickers) to HTML Canvas.
-    -   Pre-loads media resources for performance.
-    -   Handles frame-accurate video seeking with `seeked` event.
-    -   Layer renderers for each clip type ensure WYSIWYG output.
+**1. Unified Render Engine** (`renderEngine.ts`):
+-   Central rendering class that mirrors `VideoPreview.tsx` behavior exactly.
+-   Renders all layers (video, text, stickers) to HTML Canvas.
+-   Handles frame-accurate video seeking with `requestVideoFrameCallback`.
+-   Ensures WYSIWYG output by using the same logic for preview and export.
 
--   **`exportToMp4`** (`ffmpegExporter.ts`):
-    -   Uses `RenderEngine` for frame generation.
-    -   Encodes with FFmpeg WASM (`@ffmpeg/ffmpeg`).
+**2. Export Strategies:**
+-   **Hardware Accelerated (WebCodecs)** (`webcodecs.ts`) *Primary*:
+    -   Uses browser's native `VideoEncoder` for GPU-accelerated encoding.
+    -   Significantly faster (up to 10x) on supported browsers.
+    -   Uses FFmpeg WASM only for audio mixing and muxing (in some cases).
+-   **Software Encoding (FFmpeg WASM)** (`ffmpegExporter.ts`) *Fallback*:
+    -   Uses `@ffmpeg/ffmpeg` to encode video frame-by-frame.
     -   **CFR Enforcement**: Uses `-vsync cfr` flag for constant framerate.
-    -   Complex audio filter graph for multi-track mixing with `amix`.
-    -   Supports video/audio/text clips with full feature parity to preview.
+    -   Robust fallback for browsers without WebCodecs support.
+
+**3. Routing Logic:**
+-   User preference is handled via `useHardwareAcceleration` in `ExportSettingsModal`.
+-   `App.tsx` routes the request to the appropriate exporter based on settings and browser support.
 
 ## 5. Styling & Assets
 -   **Tailwind CSS**: Used for 99% of styling.
