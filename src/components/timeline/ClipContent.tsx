@@ -76,14 +76,34 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
 
     const generate = async () => {
       try {
-        await new Promise((resolve, reject) => {
-          video.onloadeddata = () => resolve(true);
-          video.onerror = (e) => reject(e);
+        // Wait for video metadata to load with timeout fallback
+        await new Promise<boolean>((resolve, reject) => {
+          // Check if already loaded
+          if (video.readyState >= 1) {
+            resolve(true);
+            return;
+          }
+          
+          const timeoutId = setTimeout(() => {
+            reject(new Error("Video load timeout"));
+          }, 10000);
+          
+          video.onloadedmetadata = () => {
+            clearTimeout(timeoutId);
+            resolve(true);
+          };
+          video.onerror = (e) => {
+            clearTimeout(timeoutId);
+            reject(e);
+          };
+          
+          // Trigger load if not started
+          video.load();
         });
 
         const vw = video.videoWidth;
         const vh = video.videoHeight;
-        const aspect = vw / vh;
+        const aspect = vw / vh || 16 / 9;
         const actualThumbWidth = thumbHeight * aspect;
         
         canvas.width = actualThumbWidth * 2;
@@ -105,13 +125,23 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
           video.currentTime = time;
 
           await new Promise<void>((resolve) => {
+             // Check if already at correct time and ready
+             if (video.readyState >= 2 && Math.abs(video.currentTime - time) < 0.1) {
+               resolve();
+               return;
+             }
+             
              const onSeeked = () => {
                video.removeEventListener("seeked", onSeeked);
                resolve();
              };
              video.addEventListener("seeked", onSeeked);
-             // Fallback if event doesn't fire quickly
-             if (video.readyState >= 2) onSeeked(); 
+             
+             // Timeout fallback for seek
+             setTimeout(() => {
+               video.removeEventListener("seeked", onSeeked);
+               resolve();
+             }, 1000);
           });
 
           if (ctx) {
@@ -141,6 +171,8 @@ function VideoClipContent({ clip, width }: { clip: VideoClip; width: number }) {
 
     return () => {
       isCancelled = true;
+      // Reset the generation lock so subsequent effect runs can generate
+      generationRef.current = false;
     };
   }, [
     clip.sourceUrl, 
