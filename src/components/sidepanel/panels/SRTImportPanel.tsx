@@ -11,11 +11,11 @@ export function SRTImportPanel() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showImportSection, setShowImportSection] = useState(true);
-  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  
-  // Get data from store
+
+  // Get data from store - selection is now derived from the single source of truth
   const mediaLibrary = useTimelineStore((s) => s.mediaLibrary);
   const clips = useTimelineStore((s) => s.clips);
+  const selectedClipIds = useTimelineStore((s) => s.selectedClipIds);
   const addMediaItem = useTimelineStore((s) => s.addMediaItem);
   const removeMediaItem = useTimelineStore((s) => s.removeMediaItem);
   const updateClip = useTimelineStore((s) => s.updateClip);
@@ -158,16 +158,12 @@ export function SRTImportPanel() {
   // Delete text clip from timeline
   const handleDeleteClip = useCallback((clipId: string) => {
     removeClip(clipId);
-    if (selectedClipId === clipId) {
-      setSelectedClipId(null);
-    }
-  }, [removeClip, selectedClipId]);
+  }, [removeClip]);
 
   // Jump to clip and select it
   const handlePlayClip = useCallback((clip: TextClip) => {
     setCurrentTime(clip.startTime);
     selectClip(clip.id);
-    setSelectedClipId(clip.id);
   }, [setCurrentTime, selectClip]);
 
   const handleImportToTimeline = useCallback(
@@ -306,16 +302,13 @@ export function SRTImportPanel() {
         ) : (
           <div className="divide-y divide-zinc-800">
             {textClips.map((clip) => (
-              <div 
+              <div
                 key={clip.id}
                 className={`
                   group p-3 hover:bg-zinc-800/50 transition-colors cursor-pointer
-                  ${selectedClipId === clip.id ? 'bg-orange-500/10 border-l-2 border-orange-500' : 'border-l-2 border-transparent'}
+                  ${selectedClipIds.includes(clip.id) ? 'bg-orange-500/10 border-l-2 border-orange-500' : 'border-l-2 border-transparent'}
                 `}
-                onClick={() => {
-                  setSelectedClipId(clip.id);
-                  selectClip(clip.id);
-                }}
+                onClick={() => selectClip(clip.id)}
               >
                 {/* Timecode row with actions */}
                 <div className="flex items-center gap-2 mb-1.5">

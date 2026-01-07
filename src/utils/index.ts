@@ -39,3 +39,7 @@ export {
   wouldClipsOverlap,
   findNearestGap,
 } from "./snapping";
+
+// Export utilities
+export { RenderEngine, exportToMp4 } from "./export";
+export type { RenderContext, VideoResources, RenderEngineOptions, ExportOptions } from "./export";

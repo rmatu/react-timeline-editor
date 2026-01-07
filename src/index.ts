@@ -44,8 +44,7 @@ export {
   clipAtomFamily,
   tracksMapAtom,
   trackAtomFamily,
-  currentTimeAtom,
-  isPlayingAtom,
+  scrubPreviewTimeAtom,
 } from "./stores";
 
 export { snapGuideAtom } from "./components/timeline/SnapGuide";

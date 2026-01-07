@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Download, Settings2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Download, Settings2, Zap } from "lucide-react";
 
 export type ExportQuality = "high" | "medium" | "low";
 export type ExportPreset = "ultrafast" | "veryfast" | "medium"; // FFmpeg presets
@@ -10,6 +10,7 @@ export interface ExportSettings {
   height: number;
   fps: number;
   quality: ExportQuality;
+  useHardwareAcceleration: boolean;
 }
 
 interface ExportSettingsModalProps {
@@ -27,12 +28,23 @@ export function ExportSettingsModal({
   defaultSettings,
   isExporting = false,
 }: ExportSettingsModalProps) {
+  const [webCodecsSupported, setWebCodecsSupported] = useState(false);
+  
+  useEffect(() => {
+    // Check WebCodecs support on mount
+    setWebCodecsSupported(
+      typeof VideoEncoder !== "undefined" &&
+      typeof VideoFrame !== "undefined"
+    );
+  }, []);
+
   const [settings, setSettings] = useState<ExportSettings>({
     filename: "video-export",
     width: 1920,
     height: 1080,
     fps: 30,
     quality: "high",
+    useHardwareAcceleration: true, // Default to on if supported
     ...defaultSettings,
   });
 
@@ -135,6 +147,35 @@ export function ExportSettingsModal({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Hardware Acceleration Toggle */}
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              <Zap size={16} className={settings.useHardwareAcceleration && webCodecsSupported ? "text-yellow-400" : "text-gray-500"} />
+              <div>
+                <label className="text-sm font-medium text-gray-300">Hardware Acceleration</label>
+                <p className="text-xs text-gray-500">
+                  {webCodecsSupported ? "Use GPU for faster encoding" : "Not supported in this browser"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, useHardwareAcceleration: !settings.useHardwareAcceleration })}
+              disabled={isExporting || !webCodecsSupported}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                settings.useHardwareAcceleration && webCodecsSupported
+                  ? "bg-yellow-500"
+                  : "bg-gray-700"
+              } ${!webCodecsSupported ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                  settings.useHardwareAcceleration && webCodecsSupported ? "translate-x-5" : ""
+                }`}
+              />
+            </button>
           </div>
 
           <div className="pt-4 flex gap-3">
