@@ -5,7 +5,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 ## Features
 
 - **Multi-track Timeline** - Support for video, audio, text, and sticker tracks
-- **Clip Manipulation** - Drag to reposition, trim handles to adjust duration
+- **Clip Manipulation** - Drag to reposition, trim handles to adjust duration, drag timeline end handle to cut/extend timeline
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
