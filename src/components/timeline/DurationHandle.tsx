@@ -35,7 +35,7 @@ export function DurationHandle({
 
       if (last) {
         setIsDragging(false);
-        setDuration(newTime);
+        setDuration(newTime, true);
       }
 
       return memo;
