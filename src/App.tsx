@@ -12,6 +12,7 @@ import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, TextClip } from "@/schemas";
 import { exportToMp4 } from "@/utils/ffmpegExporter";
 import { ExportSettingsModal, type ExportSettings } from "@/components/ExportSettingsModal";
+import { ContextPanel } from "@/components/properties/ContextPanel";
 
 // Demo data
 const demoTracks = [
@@ -253,6 +254,9 @@ function App() {
           {/* Preview Controls - flex-shrink-0 ensures it's always visible */}
           <PreviewControls className="mx-4 mb-2 flex-shrink-0" />
         </div>
+
+        {/* Right Context Panel */}
+        <ContextPanel />
       </div>
 
       {/* Timeline - now resizable */}

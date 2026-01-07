@@ -242,6 +242,12 @@ export function Timeline({
           onClick={handleTimelineClick}
           className="flex-1"
         >
+          {/* Duration Handle (placed here to be behind clips/tracks in stacking order) */}
+          <DurationHandle
+            zoomLevel={zoomLevel}
+            totalDuration={totalDuration}
+          />
+
           {/* Tracks */}
           <div className="relative" style={{ height: contentHeight }}>
             {sortedTracks.map((track) => {
@@ -271,17 +277,12 @@ export function Timeline({
         {/* Global Playhead Overlay */}
         {/* Positioned relative to Content Column */}
         <div className="absolute inset-y-0 left-0 right-0 pointer-events-none overflow-hidden z-20">
-           <Playhead
+          <Playhead
             currentTime={currentTime}
             zoomLevel={zoomLevel}
             scrollX={scrollX}
             height={contentHeight + RULER_HEIGHT} // Approximate, ideally full height
             onSeek={onTimeChange}
-          />
-          <DurationHandle
-            zoomLevel={zoomLevel}
-            totalDuration={totalDuration}
-            scrollX={scrollX}
           />
         </div>
       </div>

@@ -48,7 +48,7 @@ export const COMMON_FPS = [24, 25, 30, 50, 60] as const;
 export const DEFAULT_FPS = 30;
 
 // Default timeline duration (seconds)
-export const DEFAULT_DURATION = 60;
+export const DEFAULT_DURATION = 25;
 
 // Keyboard shortcuts
 export const KEYBOARD_SHORTCUTS = {
