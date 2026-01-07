@@ -19,7 +19,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 -   **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
 - **Export Functionality** - Client-side MP4 export via FFmpeg.wasm with configurable resolution, FPS, and quality settings
-- **Video Thumbnails** - Dynamic visual timeline with generated frame previews for video clips
+- **Video Thumbnails** - Dynamic visual timeline with robust, generated frame previews for video clips
 - **Undo/Redo** - Full history management for all editing operations
 - **Type Safety** - Full TypeScript support with Zod runtime validation
 - **Performance Optimized** - Hybrid state management with Zustand + Jotai + Immer

@@ -109,8 +109,9 @@ Visualization of media on the timeline is handled asynchronously to ensure perfo
 
 -   **Video Thumbnails**:
     -   Generated client-side using an off-screen `HTMLVideoElement` and `Canvas`.
+    -   Uses `loadedmetadata` event for reliable metadata loading with timeout fallbacks to prevent hanging states.
+    -   Implements a locking mechanism (`generationRef`) to prevent race conditions during rapid re-renders (e.g., scrolling).
     -   Extracts frames at regular intervals based on clip duration and pixel width.
-    -   Caches results to avoid re-generation during pans/zooms where possible.
     -   Renders as a "filmstrip" of images.
 
 -   **Audio Waveforms**:
