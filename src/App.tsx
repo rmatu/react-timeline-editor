@@ -6,7 +6,7 @@ import { Timeline } from "@/components/timeline";
 import { VideoPreview, PreviewControls } from "@/components/preview";
 import { ResizablePanel } from "@/components/ResizablePanel";
 import { Sidepanel } from "@/components/sidepanel";
-import { useTimelineStore } from "@/stores/timelineStore";
+import { useTimelineStore, type MediaItem } from "@/stores/timelineStore";
 import { useSidepanelStore } from "@/stores/sidepanelStore";
 import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, TextClip } from "@/schemas";
@@ -14,98 +14,155 @@ import { exportToMp4 } from "@/utils/ffmpegExporter";
 import { ExportSettingsModal, type ExportSettings } from "@/components/ExportSettingsModal";
 import { ContextPanel } from "@/components/properties/ContextPanel";
 
-// Demo data
+// Demo data - using local example files from /files folder
 const demoTracks = [
-  createTrack({ name: "Video 1", type: "video", order: 0 }),
-  createTrack({ name: "Audio 1", type: "audio", order: 1 }),
-  createTrack({ name: "Text", type: "text", order: 2 }),
+  createTrack({ name: "Video", type: "video", order: 0 }),
+  createTrack({ name: "Audio", type: "audio", order: 1 }),
+  createTrack({ name: "Subtitles", type: "text", order: 2 }),
 ];
 
+// Text clips generated from example-dubbing.srt
 const demoClips: Array<VideoClip | AudioClip | TextClip> = [
+  // Video clip - local MP4 file
   {
     id: crypto.randomUUID(),
     trackId: demoTracks[0].id,
     type: "video",
     startTime: 0,
-    duration: 10,
+    duration: 25,
     sourceStartTime: 0,
-    maxDuration: 30,
-    sourceUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Big_Buck_Bunny_thumbnail_vlc.png/400px-Big_Buck_Bunny_thumbnail_vlc.png",
+    maxDuration: 120, // Approximate duration of the example video
+    sourceUrl: "/files/file_example_MP4_1920_18MG.mp4",
     volume: 1,
     playbackRate: 1,
     locked: false,
     muted: false,
   },
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[0].id,
-    type: "video",
-    startTime: 12,
-    duration: 8,
-    sourceStartTime: 5,
-    maxDuration: 20,
-    sourceUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    volume: 1,
-    playbackRate: 1,
-    locked: false,
-    muted: false,
-  },
+  // Audio clip - local MP3 file
   {
     id: crypto.randomUUID(),
     trackId: demoTracks[1].id,
     type: "audio",
     startTime: 0,
-    duration: 20,
+    duration: 25,
     sourceStartTime: 0,
-    // sourceUrl: "https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav", // WAV might be big.
-    // Let's stick to the google bucket sample, it works.
-    sourceUrl: "https://commondatastorage.googleapis.com/codeskulptor-demos/riceracer_assets/music/race1.ogg",
+    sourceUrl: "/files/file_example_MP3_700KB.mp3",
     volume: 0.8,
     fadeIn: 0.5,
     fadeOut: 1,
     locked: false,
     muted: false,
-    waveformData: Array.from({ length: 100 }, () => Math.random()),
   },
+  // Subtitle 1: 00:00:00,000 --> 00:00:02,500
   {
     id: crypto.randomUUID(),
     trackId: demoTracks[2].id,
     type: "text",
-    startTime: 2,
-    duration: 5,
+    startTime: 0,
+    duration: 2.5,
     sourceStartTime: 0,
-    content: "Hello World!",
+    content: "Welcome to the Example Subtitle File!",
     fontFamily: "Inter",
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#ffffff",
     textAlign: "center",
-    position: { x: 50, y: 80 },
+    position: { x: 50, y: 85 },
     animation: "fade",
     locked: false,
     muted: false,
   },
+  // Subtitle 2: 00:00:03,000 --> 00:00:06,000
   {
     id: crypto.randomUUID(),
     trackId: demoTracks[2].id,
     type: "text",
-    startTime: 14,
-    duration: 4,
+    startTime: 3,
+    duration: 3,
     sourceStartTime: 0,
-    content: "React Video Timeline",
+    content: "This is a demonstration of SRT subtitles.",
     fontFamily: "Inter",
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: "normal",
-    color: "#ffcc00",
+    color: "#ffffff",
     textAlign: "center",
-    position: { x: 50, y: 20 },
-    animation: "slide",
+    position: { x: 50, y: 85 },
+    animation: "fade",
+    locked: false,
+    muted: false,
+  },
+  // Subtitle 3: 00:00:07,000 --> 00:00:10,500
+  {
+    id: crypto.randomUUID(),
+    trackId: demoTracks[2].id,
+    type: "text",
+    startTime: 7,
+    duration: 3.5,
+    sourceStartTime: 0,
+    content: "You can use SRT files to add subtitles to your videos.",
+    fontFamily: "Inter",
+    fontSize: 32,
+    fontWeight: "normal",
+    color: "#ffffff",
+    textAlign: "center",
+    position: { x: 50, y: 85 },
+    animation: "fade",
+    locked: false,
+    muted: false,
+  },
+  // Subtitle 4: 00:00:12,000 --> 00:00:15,000
+  {
+    id: crypto.randomUUID(),
+    trackId: demoTracks[2].id,
+    type: "text",
+    startTime: 12,
+    duration: 3,
+    sourceStartTime: 0,
+    content: "Each subtitle entry consists of a number, a timecode, and the subtitle text.",
+    fontFamily: "Inter",
+    fontSize: 28,
+    fontWeight: "normal",
+    color: "#ffffff",
+    textAlign: "center",
+    position: { x: 50, y: 85 },
+    animation: "fade",
     locked: false,
     muted: false,
   },
 ];
 
+// Initial media library items - single source of truth
+const demoMediaLibrary: MediaItem[] = [
+  {
+    id: crypto.randomUUID(),
+    name: 'file_example_MP4_1920_18MG.mp4',
+    type: 'video',
+    url: '/files/file_example_MP4_1920_18MG.mp4',
+  },
+  {
+    id: crypto.randomUUID(),
+    name: 'file_example_MP3_700KB.mp3',
+    type: 'audio',
+    url: '/files/file_example_MP3_700KB.mp3',
+  },
+  {
+    id: crypto.randomUUID(),
+    name: 'example-dubbing.srt',
+    type: 'srt',
+    url: '/files/example-dubbing.srt',
+    subtitles: [
+      { index: 1, startTime: 0, endTime: 2.5, text: 'Welcome to the Example Subtitle File!' },
+      { index: 2, startTime: 3, endTime: 6, text: 'This is a demonstration of SRT subtitles.' },
+      { index: 3, startTime: 7, endTime: 10.5, text: 'You can use SRT files to add subtitles to your videos.' },
+      { index: 4, startTime: 12, endTime: 15, text: 'Each subtitle entry consists of a number, a timecode, and the subtitle text.' },
+      { index: 5, startTime: 16, endTime: 20, text: 'The timecode format is hours:minutes:seconds,milliseconds.' },
+      { index: 6, startTime: 21, endTime: 25, text: 'You can adjust the timing to match your video.' },
+      { index: 7, startTime: 26, endTime: 30, text: 'Make sure the subtitle text is clear and readable.' },
+      { index: 8, startTime: 31, endTime: 35, text: "And that's how you create an SRT subtitle file!" },
+      { index: 9, startTime: 36, endTime: 40, text: 'Enjoy adding subtitles to your videos!' },
+    ],
+  },
+];
 function App() {
   const {
     currentTime,
@@ -191,7 +248,7 @@ function App() {
   // Load demo data on mount
   useEffect(() => {
     // setDuration(30); // Removed to allow default duration and auto-extension
-    loadTimeline(demoTracks, demoClips);
+    loadTimeline(demoTracks, demoClips, demoMediaLibrary);
   }, [loadTimeline, setDuration]);
 
   return (

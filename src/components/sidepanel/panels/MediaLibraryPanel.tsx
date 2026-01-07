@@ -1,17 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { Upload, Film, Music, Trash2, Plus, GripVertical } from 'lucide-react';
-import { useTimelineStore } from '@/stores/timelineStore';
+import { useTimelineStore, type MediaItem } from '@/stores/timelineStore';
 import { createTrack } from '@/schemas';
 import type { VideoClip, AudioClip } from '@/schemas';
 
-interface MediaItem {
-  id: string;
-  name: string;
-  type: 'video' | 'audio';
-  url: string;
-  duration?: number;
-  thumbnailUrl?: string;
-}
+// Re-export MediaItem type for use elsewhere
+export type { MediaItem } from '@/stores/timelineStore';
 
 // Media item data for drag-and-drop
 export interface MediaDragData {
@@ -20,9 +14,57 @@ export interface MediaDragData {
 }
 
 export function MediaLibraryPanel() {
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const { tracks, addTrack, addClip, currentTime } = useTimelineStore();
+  
+  // Get media library from store (single source of truth)
+  const mediaLibrary = useTimelineStore((s) => s.mediaLibrary);
+  const addMediaItem = useTimelineStore((s) => s.addMediaItem);
+  const removeMediaItem = useTimelineStore((s) => s.removeMediaItem);
+  const updateMediaItem = useTimelineStore((s) => s.updateMediaItem);
+  const tracks = useTimelineStore((s) => s.tracks);
+  const addTrack = useTimelineStore((s) => s.addTrack);
+  const addClip = useTimelineStore((s) => s.addClip);
+  const currentTime = useTimelineStore((s) => s.currentTime);
+
+  // Filter to only show video/audio items (not SRT)
+  const mediaItems = useMemo(() => {
+    return Array.from(mediaLibrary.values()).filter(
+      (item) => item.type === 'video' || item.type === 'audio'
+    );
+  }, [mediaLibrary]);
+
+  // Load metadata for items that don't have duration yet
+  useEffect(() => {
+    mediaItems.forEach((item) => {
+      if (item.duration !== undefined) return; // Already has duration
+      if (item.type !== 'video' && item.type !== 'audio') return;
+
+      const element = document.createElement(
+        item.type === 'video' ? 'video' : 'audio'
+      ) as HTMLVideoElement | HTMLAudioElement;
+      element.src = item.url;
+      element.addEventListener('loadedmetadata', () => {
+        updateMediaItem(item.id, { duration: element.duration });
+
+        // Generate thumbnail for video
+        if (item.type === 'video' && element instanceof HTMLVideoElement) {
+          const video = element;
+          video.currentTime = 1; // Seek to 1 second for thumbnail
+          video.addEventListener('seeked', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth / 4;
+            canvas.height = video.videoHeight / 4;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
+              updateMediaItem(item.id, { thumbnailUrl });
+            }
+          }, { once: true });
+        }
+      });
+    });
+  }, [mediaItems, updateMediaItem]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -61,64 +103,29 @@ export function MediaLibraryPanel() {
         file.type.startsWith('video/') || file.type.startsWith('audio/')
     );
 
-    const newItems: MediaItem[] = mediaFiles.map((file) => ({
-      id: crypto.randomUUID(),
-      name: file.name,
-      type: file.type.startsWith('video/') ? 'video' : 'audio',
-      url: URL.createObjectURL(file),
-    }));
-
-    // Get duration and thumbnail for each media file
-    newItems.forEach((item) => {
-      const element = document.createElement(
-        item.type === 'video' ? 'video' : 'audio'
-      ) as HTMLVideoElement | HTMLAudioElement;
-      element.src = item.url;
-      element.addEventListener('loadedmetadata', () => {
-        setMediaItems((prev) =>
-          prev.map((i) =>
-            i.id === item.id ? { ...i, duration: element.duration } : i
-          )
-        );
-
-        // Generate thumbnail for video
-        if (item.type === 'video' && element instanceof HTMLVideoElement) {
-          const video = element;
-          video.currentTime = 1; // Seek to 1 second for thumbnail
-          video.addEventListener('seeked', () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth / 4;
-            canvas.height = video.videoHeight / 4;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
-              setMediaItems((prev) =>
-                prev.map((i) =>
-                  i.id === item.id ? { ...i, thumbnailUrl } : i
-                )
-              );
-            }
-          }, { once: true });
-        }
-      });
+    mediaFiles.forEach((file) => {
+      const item: MediaItem = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        type: file.type.startsWith('video/') ? 'video' : 'audio',
+        url: URL.createObjectURL(file),
+      };
+      addMediaItem(item);
     });
-
-    setMediaItems((prev) => [...prev, ...newItems]);
   };
 
   const handleRemoveItem = useCallback((id: string) => {
-    setMediaItems((prev) => {
-      const item = prev.find((i) => i.id === id);
-      if (item) {
-        URL.revokeObjectURL(item.url);
-      }
-      return prev.filter((i) => i.id !== id);
-    });
-  }, []);
+    const item = mediaLibrary.get(id);
+    if (item && item.url.startsWith('blob:')) {
+      URL.revokeObjectURL(item.url);
+    }
+    removeMediaItem(id);
+  }, [mediaLibrary, removeMediaItem]);
 
   const addMediaToTimeline = useCallback(
     (item: MediaItem, startTime: number = 0) => {
+      if (item.type !== 'video' && item.type !== 'audio') return;
+      
       // Find or create appropriate track
       const trackType = item.type;
       let track = Array.from(tracks.values()).find((t) => t.type === trackType);

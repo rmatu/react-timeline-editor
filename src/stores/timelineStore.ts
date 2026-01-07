@@ -19,6 +19,26 @@ export interface TimelineExport {
   clips: Clip[];
 }
 
+// Subtitle entry for SRT files
+export interface Subtitle {
+  index: number;
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
+// Media library item - single source of truth for all imported media
+export interface MediaItem {
+  id: string;
+  name: string;
+  type: 'video' | 'audio' | 'srt';
+  url: string;
+  duration?: number;
+  thumbnailUrl?: string;
+  // For SRT files
+  subtitles?: Subtitle[];
+}
+
 // Enable Immer support for Map and Set
 enableMapSet();
 
@@ -53,6 +73,9 @@ interface TimelineState {
   // Data
   tracks: Map<string, Track>;
   clips: Map<string, Clip>;
+
+  // Media library - single source of truth for imported media
+  mediaLibrary: Map<string, MediaItem>;
 
   // History for undo/redo
   history: Array<{ tracks: Map<string, Track>; clips: Map<string, Clip> }>;
@@ -120,9 +143,14 @@ interface TimelineActions {
   setResolution: (width: number, height: number) => void;
 
   // Bulk operations
-  loadTimeline: (tracks: Track[], clips: Clip[]) => void;
+  loadTimeline: (tracks: Track[], clips: Clip[], mediaLibrary?: MediaItem[]) => void;
   exportTimeline: () => TimelineExport;
   clearTimeline: () => void;
+
+  // Media library actions
+  addMediaItem: (item: MediaItem) => void;
+  removeMediaItem: (id: string) => void;
+  updateMediaItem: (id: string, updates: Partial<MediaItem>) => void;
 }
 
 type TimelineStore = TimelineState & TimelineActions;
@@ -155,6 +183,8 @@ export const useTimelineStore = create<TimelineStore>()(
 
       tracks: new Map(),
       clips: new Map(),
+
+      mediaLibrary: new Map(),
 
       history: [],
       historyIndex: -1,
@@ -606,10 +636,13 @@ export const useTimelineStore = create<TimelineStore>()(
         }),
 
       // Bulk operations
-      loadTimeline: (tracks, clips) =>
+      loadTimeline: (tracks, clips, mediaLibrary) =>
         set((state) => {
           state.tracks = new Map(tracks.map((t) => [t.id, t]));
           state.clips = new Map(clips.map((c) => [c.id, c]));
+          if (mediaLibrary) {
+            state.mediaLibrary = new Map(mediaLibrary.map((m) => [m.id, m]));
+          }
           state.selectedClipIds = [];
           state.selectedTrackId = null;
           state.history = [];
@@ -620,6 +653,7 @@ export const useTimelineStore = create<TimelineStore>()(
         set((state) => {
           state.tracks = new Map();
           state.clips = new Map();
+          state.mediaLibrary = new Map();
           state.selectedClipIds = [];
           state.selectedTrackId = null;
           state.currentTime = 0;
@@ -636,6 +670,25 @@ export const useTimelineStore = create<TimelineStore>()(
           clips: Array.from(state.clips.values()),
         };
       },
+
+      // Media library actions
+      addMediaItem: (item) =>
+        set((state) => {
+          state.mediaLibrary.set(item.id, item);
+        }),
+
+      removeMediaItem: (id) =>
+        set((state) => {
+          state.mediaLibrary.delete(id);
+        }),
+
+      updateMediaItem: (id, updates) =>
+        set((state) => {
+          const item = state.mediaLibrary.get(id);
+          if (item) {
+            state.mediaLibrary.set(id, { ...item, ...updates });
+          }
+        }),
     })),
     { name: "timeline-store" }
   )
@@ -650,3 +703,4 @@ export const useSelectedClipIds = () =>
   useTimelineStore((state) => state.selectedClipIds);
 export const useTracks = () => useTimelineStore((state) => state.tracks);
 export const useClips = () => useTimelineStore((state) => state.clips);
+export const useMediaLibrary = () => useTimelineStore((state) => state.mediaLibrary);

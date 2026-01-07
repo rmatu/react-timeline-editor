@@ -69,6 +69,9 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
         e.stopPropagation();
         const item = mediaData.item;
 
+        // SRT files can't be dropped directly on timeline
+        if (item.type === 'srt') return;
+
         // Calculate drop position (time)
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const xInViewport = e.clientX - rect.left + scrollX;
