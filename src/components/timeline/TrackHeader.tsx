@@ -143,20 +143,22 @@ export function TrackHeader({ track }: TrackHeaderProps) {
       )}
 
       {/* Track controls */}
-      <div className="flex items-center gap-1">
-        {/* Visibility toggle */}
-        <button
-          className={cn(
-            "rounded p-1 text-xs transition-colors",
-            track.visible
-              ? "text-zinc-400 hover:bg-zinc-600 hover:text-zinc-200"
-              : "bg-zinc-600 text-zinc-500"
-          )}
-          onClick={handleToggleVisible}
-          title={track.visible ? "Hide track" : "Show track"}
-        >
-          <EyeIcon className="h-3 w-3" visible={track.visible} />
-        </button>
+      <div className="absolute right-0 top-0 h-full z-10 flex items-center gap-1 pr-2 pl-2 bg-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        {/* Visibility toggle - hide for audio tracks */}
+        {track.type !== "audio" && (
+          <button
+            className={cn(
+              "rounded p-1 text-xs transition-colors",
+              track.visible
+                ? "text-zinc-400 hover:bg-zinc-600 hover:text-zinc-200"
+                : "bg-zinc-600 text-zinc-500"
+            )}
+            onClick={handleToggleVisible}
+            title={track.visible ? "Hide track" : "Show track"}
+          >
+            <EyeIcon className="h-3 w-3" visible={track.visible} />
+          </button>
+        )}
 
         {/* Mute toggle (for audio/video tracks) */}
         {(track.type === "audio" || track.type === "video") && (
@@ -166,7 +168,7 @@ export function TrackHeader({ track }: TrackHeaderProps) {
               track.muted
                 ? "bg-red-900/50 text-red-400"
                 : "text-zinc-400 hover:bg-zinc-600 hover:text-zinc-200"
-              )}
+            )}
             onClick={handleToggleMute}
             title={track.muted ? "Unmute" : "Mute"}
           >
