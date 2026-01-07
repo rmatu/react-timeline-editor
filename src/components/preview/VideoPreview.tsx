@@ -38,9 +38,9 @@ const VideoLayer = memo(({
     const video = videoRef.current;
     if (!video) return;
 
-    // 1. Mute/Volume
-    video.muted = !isActive || clip.muted || trackMuted;
-    video.volume = clip.volume;
+    // 1. Mute/Volume - Always mute video element, audio is handled by AudioLayer
+    video.muted = true;
+    video.playbackRate = clip.playbackRate;
 
     // 2. Playback State
     if (isActive && isPlaying) {
@@ -52,7 +52,7 @@ const VideoLayer = memo(({
     }
 
     // 3. Time Sync
-    const targetVideoTime = clip.sourceStartTime + (currentTime - clip.startTime);
+    const targetVideoTime = clip.sourceStartTime + (currentTime - clip.startTime) * clip.playbackRate;
     
     // Check if we need to sync (seek)
     const timeDiff = Math.abs(video.currentTime - targetVideoTime);
@@ -88,6 +88,7 @@ const VideoLayer = memo(({
         opacity: isInRange ? 1 : 0,
         zIndex: isInRange ? zIndex : 0,
       }}
+      preload="auto"
       playsInline
       onLoadedData={handleLoadedData}
       onTimeUpdate={handleTimeUpdate}
@@ -119,6 +120,10 @@ const AudioLayer = memo(({
     // 1. Mute/Volume
     audio.muted = !isActive || clip.muted || trackMuted;
     audio.volume = clip.volume;
+    
+    // Handle playbackRate for video clips
+    const playbackRate = clip.type === 'video' ? clip.playbackRate : 1;
+    audio.playbackRate = playbackRate;
 
     // 2. Playback State
     if (isActive && isPlaying) {
@@ -129,8 +134,8 @@ const AudioLayer = memo(({
       audio.pause();
     }
 
-    // 3. Time Sync
-    const targetAudioTime = clip.sourceStartTime + (currentTime - clip.startTime);
+    // 3. Time Sync - account for playbackRate on video clips
+    const targetAudioTime = clip.sourceStartTime + (currentTime - clip.startTime) * playbackRate;
     
     const timeDiff = Math.abs(audio.currentTime - targetAudioTime);
     
@@ -146,6 +151,7 @@ const AudioLayer = memo(({
       ref={audioRef}
       src={clip.sourceUrl}
       className="hidden"
+      preload="auto"
       onEnded={() => { /* Loop or stop? defaults to stop */ }}
     />
   );
@@ -260,15 +266,15 @@ export function VideoPreview({
           />
         ))}
 
-        {/* Render all audio clips */}
+        {/* Render all audio clips AND video clip audio */}
         {Array.from(clips.values())
-          .filter((c): c is AudioClip => c.type === "audio")
+          .filter((c): c is AudioClip | VideoClip => c.type === "audio" || c.type === "video")
           .map((clip) => {
              const track = tracks.get(clip.trackId);
              const isActive = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration && track?.visible !== false;
              return (
               <AudioLayer
-                key={clip.id}
+                key={`audio-${clip.id}`}
                 clip={clip}
                 isActive={isActive}
                 isPlaying={isPlaying}

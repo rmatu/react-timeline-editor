@@ -97,7 +97,7 @@ export function useTimelineGestures(
         // Check on first event if we should skip scrolling (started on a clip or trim handle)
         if (first) {
           const target = event?.target as HTMLElement;
-          const onClipOrHandle = target?.closest(".clip") || target?.closest(".trim-handle");
+          const onClipOrHandle = target?.closest(".clip") || target?.closest(".trim-handle") || target?.closest(".duration-handle");
           // Return true to memo if we should skip, this persists for the whole gesture
           if (onClipOrHandle) return true;
           return false;

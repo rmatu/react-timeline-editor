@@ -13,8 +13,7 @@ interface DurationHandleProps {
 export function DurationHandle({
   zoomLevel,
   totalDuration,
-  scrollX,
-}: DurationHandleProps) {
+}: Omit<DurationHandleProps, "scrollX">) {
   const { setDuration } = useTimelineStore();
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(totalDuration);
@@ -46,14 +45,16 @@ export function DurationHandle({
   );
 
   const displayTime = isDragging ? dragTime : totalDuration;
-  const left = timeToPixels(displayTime, zoomLevel) - scrollX;
+  // Position is now relative to the scrollable content, so no need to subtract scrollX
+  const left = timeToPixels(displayTime, zoomLevel);
 
   return (
     <div
       {...bind()}
       className={cn(
-        "absolute top-0 bottom-0 w-4 -ml-2 z-30 cursor-ew-resize group touch-none flex flex-col items-center pointer-events-auto",
-        "hover:z-40"
+        "duration-handle absolute top-0 bottom-0 w-4 -ml-2 cursor-ew-resize group touch-none flex flex-col items-center pointer-events-auto",
+        // Removed z-30 from container so line sits behind clips
+        // Added z-50 to knob ensures it's always reachable
       )}
       style={{ left }}
     >
@@ -65,7 +66,7 @@ export function DurationHandle({
 
       {/* Handle Knob (Top) */}
       <div className={cn(
-        "absolute top-0 w-3 h-6 rounded-b-sm shadow-sm flex items-center justify-center transition-colors",
+        "absolute top-0 w-3 h-6 rounded-b-sm shadow-sm flex items-center justify-center transition-colors z-50",
         isDragging ? "bg-blue-500 text-white" : "bg-zinc-700 text-zinc-400 group-hover:bg-blue-400 group-hover:text-white"
       )}>
         <div className="w-0.5 h-3 bg-current opacity-50 rounded-full" />
