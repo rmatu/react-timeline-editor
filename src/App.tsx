@@ -10,7 +10,7 @@ import { useTimelineStore, type MediaItem } from "@/stores/timelineStore";
 import { useSidepanelStore } from "@/stores/sidepanelStore";
 import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, TextClip } from "@/schemas";
-import { exportToMp4 } from "@/utils/ffmpegExporter";
+import { exportToMp4, exportWithWebCodecs, isWebCodecsSupported } from "@/utils/export";
 import { ExportSettingsModal, type ExportSettings } from "@/components/ExportSettingsModal";
 import { ContextPanel } from "@/components/properties/ContextPanel";
 
@@ -202,14 +202,20 @@ function App() {
     try {
       setIsExporting(true);
       const store = useTimelineStore.getState();
-      const toastId = toast.loading("Exporting video... (Rendering + Encoding)");
+      
+      // Determine which encoder to use
+      const useWebCodecs = settings.useHardwareAcceleration && isWebCodecsSupported();
+      const encoderName = useWebCodecs ? "GPU" : "CPU";
+      const toastId = toast.loading(`Exporting video... (${encoderName} encoding)`);
 
-      const blob = await exportToMp4({
+      const exportFn = useWebCodecs ? exportWithWebCodecs : exportToMp4;
+      const blob = await exportFn({
         width: settings.width,
         height: settings.height,
         fps: settings.fps,
         quality: settings.quality,
         filename: settings.filename,
+        useHardwareAcceleration: settings.useHardwareAcceleration,
         duration: store.totalDuration,
         tracks: store.tracks,
         clips: store.clips,
@@ -218,7 +224,7 @@ function App() {
           if (progress < 0.8) {
               toast.loading(`Rendering... ${Math.round(progress/0.8 * 100)}%`, { id: toastId });
           } else {
-              toast.loading(`Encoding... ${Math.round((progress-0.8)/0.2 * 100)}%`, { id: toastId });
+              toast.loading(`Encoding (${encoderName})... ${Math.round((progress-0.8)/0.2 * 100)}%`, { id: toastId });
           }
         },
       });

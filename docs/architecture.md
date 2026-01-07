@@ -121,20 +121,22 @@ Visualization of media on the timeline is handled asynchronously to ensure perfo
     -   Logic encapsulated in `useAudioWaveform` hook.
 
 ### Export Pipeline
-The app supports two export methods (in `src/utils/`):
+The app uses a unified export system (in `src/utils/export/`):
 
-1.  **FFmpeg (WASM)** (`ffmpegExporter.ts`):
-    -   **Primary Method** for high compatibility.
-    -   Renders frame-by-frame to an HTML Canvas.
-    -   Captures canvas as Blob/File.
-    -   Passes files to `ffmpeg.wasm` virtual filesystem.
-    -   Encodes using `libx264` (H.264).
-    -   **Critical**: Must wait for `seeked` event on video elements to strictly ensure frame accuracy (prevent "slideshow" bug).
+**Architecture:**
+-   **`RenderEngine`** (`renderEngine.ts`):
+    -   Central rendering class that mirrors `VideoPreview.tsx` behavior.
+    -   Renders all layers (video, text, stickers) to HTML Canvas.
+    -   Pre-loads media resources for performance.
+    -   Handles frame-accurate video seeking with `seeked` event.
+    -   Layer renderers for each clip type ensure WYSIWYG output.
 
-2.  **WebCodecs** (`videoExporter.ts`):
-    -   **Experimental** (browser support varies).
-    -   Uses `VideoEncoder` API.
-    -   Faster but less mature than FFmpeg.
+-   **`exportToMp4`** (`ffmpegExporter.ts`):
+    -   Uses `RenderEngine` for frame generation.
+    -   Encodes with FFmpeg WASM (`@ffmpeg/ffmpeg`).
+    -   **CFR Enforcement**: Uses `-vsync cfr` flag for constant framerate.
+    -   Complex audio filter graph for multi-track mixing with `amix`.
+    -   Supports video/audio/text clips with full feature parity to preview.
 
 ## 5. Styling & Assets
 -   **Tailwind CSS**: Used for 99% of styling.

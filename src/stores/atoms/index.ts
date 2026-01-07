@@ -29,16 +29,7 @@ export {
 } from "./trackAtoms";
 
 export {
-  currentTimeAtom,
-  isPlayingAtom,
-  playbackRateAtom,
-  loopEnabledAtom,
-  loopStartAtom,
-  loopEndAtom,
-  formattedCurrentTimeAtom,
-  loopRangeAtom,
   scrubPreviewTimeAtom,
-  displayTimeAtom,
   formatTimecode,
   formatRulerTime,
 } from "./playbackAtoms";
