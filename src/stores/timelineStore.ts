@@ -115,7 +115,7 @@ interface TimelineActions {
   canRedo: () => boolean;
 
   // Timeline configuration
-  setDuration: (duration: number) => void;
+  setDuration: (duration: number, trimClips?: boolean) => void;
   setFps: (fps: number) => void;
   setResolution: (width: number, height: number) => void;
 
@@ -549,16 +549,50 @@ export const useTimelineStore = create<TimelineStore>()(
       canRedo: () => get().historyIndex < get().history.length - 1,
 
       // Timeline configuration
-      setDuration: (duration) =>
+      setDuration: (duration, trimClips = false) =>
         set((state) => {
-          // Find the furthest ending clip
-          let maxClipEnd = 0;
-          for (const clip of state.clips.values()) {
-            maxClipEnd = Math.max(maxClipEnd, clip.startTime + clip.duration);
-          }
+          // If we are trimming clips, we enforce the new duration
+          if (trimClips) {
+            state.totalDuration = Math.max(1, duration);
 
-          // Don't allow duration less than content or 1s
-          state.totalDuration = Math.max(1, maxClipEnd, duration);
+            // Remove or trim clips that are out of bounds
+            const clipIdsToRemove: string[] = [];
+
+            for (const [id, clip] of state.clips) {
+              if (clip.startTime >= state.totalDuration) {
+                // Clip starts after the new end time, remove it
+                clipIdsToRemove.push(id);
+              } else if (clip.startTime + clip.duration > state.totalDuration) {
+                // Clip overlaps the end, trim it
+                const newDuration = state.totalDuration - clip.startTime;
+
+                // For video/audio, we might also want to adjust sourceStartTime? 
+                // No, sourceStartTime stays the same, we just cut the end.
+                // However, the trimClip action typically handles this update.
+                // Here we just update the clip directly since we are inside an immer producer.
+
+                state.clips.set(id, {
+                  ...clip,
+                  duration: newDuration
+                });
+              }
+            }
+
+            // Remove fully out-of-bounds clips
+            for (const id of clipIdsToRemove) {
+              state.clips.delete(id);
+              // Also remove from selection if present
+              state.selectedClipIds = state.selectedClipIds.filter(selId => selId !== id);
+            }
+
+          } else {
+            // Default behavior: Don't allow duration less than content or 1s
+            let maxClipEnd = 0;
+            for (const clip of state.clips.values()) {
+              maxClipEnd = Math.max(maxClipEnd, clip.startTime + clip.duration);
+            }
+            state.totalDuration = Math.max(1, maxClipEnd, duration);
+          }
         }),
 
       setFps: (fps) =>

@@ -80,7 +80,7 @@ Responsible for manipulation and editing.
 -   **`Timeline`**: Main scrollable container.
     -   **`TimeRuler`**: Top horizontal axis displaying timecodes. Supports scroll-to-zoom.
     -   **`Playhead`**: Vertical red line indicating `currentTime`.
-    -   **`DurationHandle`**: Draggable handle at the end of the timeline to manually extend total duration.
+    -   **`DurationHandle`**: Draggable handle at the end of the timeline to manually adjust total duration. Dragging left "cuts" the timeline, trimming or removing clips that exceed the new duration.
     -   **`TrackList`**: Renders the vertical list of `Track` components.
         -   **`Track`**: Droppable zone for Dnd.
             -   **`Clip`**: Draggable/Resizable item.
