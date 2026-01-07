@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Film, Download, Settings2 } from "lucide-react";
+import { X, Download, Settings2 } from "lucide-react";
 
 export type ExportQuality = "high" | "medium" | "low";
 export type ExportPreset = "ultrafast" | "veryfast" | "medium"; // FFmpeg presets

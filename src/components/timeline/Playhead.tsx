@@ -7,7 +7,7 @@ interface PlayheadProps {
   currentTime: number;
   zoomLevel: number;
   scrollX: number;
-  height: number;
+  height?: number; // Optional, reserved for future use
   onSeek: (time: number) => void;
 }
 
@@ -15,7 +15,7 @@ export function Playhead({
   currentTime,
   zoomLevel,
   scrollX,
-  height,
+  // height is passed but not currently used - reserved for future enhancements
   onSeek,
 }: PlayheadProps) {
   const isDragging = useRef(false);

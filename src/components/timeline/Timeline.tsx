@@ -133,6 +133,10 @@ export function Timeline({
     onToggleSidepanel: () => useSidepanelStore.getState().toggle(),
   });
 
+  // Use ref to track current time for smooth animation without effect restarts
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
+
   // Sync playback with animation frame
   useEffect(() => {
     if (!isPlaying) return;
@@ -145,13 +149,8 @@ export function Timeline({
       const delta = (time - lastTime) / 1000;
       lastTime = time;
 
-      const newTime = currentTime + delta; 
-      // Note: In a real app we'd use a ref for currentTime to avoid closure staleness,
-      // but here we rely on React re-render to update the closure or effect re-running.
-      // Ideally we should use a ref or functional update if onTimeChange allows.
-      // However, since we depend on [currentTime], this effect stops/starts every frame.
-      // That's actually OK for correctness but can be optimized.
-      // For now, let's keep it simple as the stutter is likely rendering, not this loop.
+      // Use ref to get latest currentTime without depending on it
+      const newTime = currentTimeRef.current + delta;
       
       if (newTime >= totalDuration) {
         onTimeChange(0);
@@ -166,7 +165,7 @@ export function Timeline({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [isPlaying, currentTime, totalDuration, onTimeChange]);
+  }, [isPlaying, totalDuration, onTimeChange]);
 
   // Auto-scroll to follow playhead during playback
   useEffect(() => {

@@ -128,7 +128,7 @@ export async function exportToMp4({
 
         // Seek relative to frame
         // Wait for seek (crucial for frame accuracy)
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve, _reject) => {
           const onSeeked = () => {
             vid.removeEventListener('seeked', onSeeked);
             resolve();
