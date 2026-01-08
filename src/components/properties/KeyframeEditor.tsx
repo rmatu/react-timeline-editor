@@ -9,6 +9,7 @@ import {
   getPropertyAtTime,
   getDefaultForProperty,
 } from "@/utils/keyframes";
+import { formatTimecode, parseTimecode } from "@/utils/time";
 import { cn } from "@/lib/utils";
 
 interface KeyframeEditorProps {
@@ -116,7 +117,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
       {hasKeyframeAtCurrentTime && (
         <div className="flex items-center gap-1.5 text-[10px] text-yellow-400 bg-yellow-400/10 rounded px-2 py-1 mb-1">
           <Diamond size={8} className="fill-current" />
-          <span>Editing keyframe at {clipTime.toFixed(2)}s</span>
+          <span>Editing keyframe at {formatTimecode(clip.startTime + clipTime)}</span>
         </div>
       )}
       
@@ -162,25 +163,20 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                       : "bg-zinc-900 hover:bg-zinc-800 border border-transparent"
                   )}
                 >
-                  {/* Time */}
+                  {/* Timecode display */}
                   <input
-                    type="number"
-                    value={Math.round(kf.time * 100) / 100}
-                    step={0.1}
-                    min={0}
-                    max={clip.duration}
-                    className="w-14 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300"
+                    type="text"
+                    value={formatTimecode(clip.startTime + kf.time)}
+                    className="w-20 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300 font-mono"
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => {
-                      const newTime = Math.max(
-                        0,
-                        Math.min(clip.duration, parseFloat(e.target.value) || 0)
-                      );
+                      const absoluteTime = parseTimecode(e.target.value);
+                      const newClipTime = absoluteTime - clip.startTime;
+                      const clampedTime = Math.max(0, Math.min(clip.duration, newClipTime));
                       saveToHistory();
-                      updateKeyframe(clip.id, kf.id, { time: newTime });
+                      updateKeyframe(clip.id, kf.id, { time: clampedTime });
                     }}
                   />
-                  <span className="text-zinc-500 text-[10px]">s</span>
 
                   {/* Easing */}
                   <select
@@ -192,7 +188,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                         easing: e.target.value as EasingType,
                       });
                     }}
-                    className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-300"
+                    className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-1 text-xs text-zinc-300"
                   >
                     <option value="linear">Linear</option>
                     <option value="ease-in">Ease In</option>
@@ -207,9 +203,9 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                       saveToHistory();
                       removeKeyframe(clip.id, kf.id);
                     }}
-                    className="text-zinc-500 hover:text-red-400 transition-colors"
+                    className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               );
