@@ -317,6 +317,7 @@ Features:
 - Drag to reposition keyframes in time
 - Multi-property indicator (blue dot when multiple properties at same time)
 - Visual feedback for selection and dragging states
+- Event isolation prevents accidental clip selection during drag
 
 #### `<ResizablePanel />`
 

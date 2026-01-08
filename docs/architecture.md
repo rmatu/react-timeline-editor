@@ -206,6 +206,7 @@ The app includes a comprehensive keyframe animation system (in `src/utils/keyfra
     -   Positioned at the bottom of clips on the timeline.
     -   Supports drag-to-reposition via `useKeyframeDrag` hook.
     -   Visual indicator shows multiple properties at same time point.
+    -   Uses memoized pointer event wrapping to prevent event bubbling to parent clip during drag.
 
 **4. Preview & Export Integration:**
 -   **Preview**: `VideoPreview.tsx` calls `getAnimatedPropertiesAtTime()` for each clip to apply transforms.

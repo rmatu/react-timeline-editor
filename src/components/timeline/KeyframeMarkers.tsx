@@ -57,7 +57,8 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
   );
 
   // Get bind handlers and wrap them to also stop propagation
-  const bindHandlers = bind();
+  // Use useMemo to prevent bind() from creating a new object on every render
+  const bindHandlers = useMemo(() => bind(), [bind]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
