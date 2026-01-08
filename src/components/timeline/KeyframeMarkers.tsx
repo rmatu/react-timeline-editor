@@ -56,9 +56,22 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
     [isDragging, keyframes, onKeyframeClick]
   );
 
+  // Get bind handlers and wrap them to also stop propagation
+  const bindHandlers = bind();
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      // Call the gesture handler
+      bindHandlers.onPointerDown?.(e);
+    },
+    [bindHandlers]
+  );
+
   return (
     <div
-      {...bind()}
+      {...bindHandlers}
+      onPointerDown={handlePointerDown}
       className={cn(
         "absolute bottom-1 pointer-events-auto cursor-grab touch-none select-none",
         isDragging && "cursor-grabbing z-50"

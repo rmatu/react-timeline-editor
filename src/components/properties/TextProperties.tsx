@@ -159,11 +159,8 @@ export const TextProperties = ({ clip }: TextPropertiesProps) => {
         <h3 className="text-xs font-semibold text-zinc-300 mb-3">Keyframe Animation</h3>
         <div className="space-y-4">
           <KeyframeEditor clip={clip} property="opacity" />
-          <KeyframeEditor clip={clip} property="position" />
           <KeyframeEditor clip={clip} property="scale" />
           <KeyframeEditor clip={clip} property="rotation" />
-          <KeyframeEditor clip={clip} property="fontSize" />
-          <KeyframeEditor clip={clip} property="color" />
         </div>
       </div>
     </div>

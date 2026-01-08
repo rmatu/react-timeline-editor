@@ -67,7 +67,6 @@ export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
           <KeyframeEditor clip={clip} property="opacity" />
           <KeyframeEditor clip={clip} property="scale" />
           <KeyframeEditor clip={clip} property="rotation" />
-          <KeyframeEditor clip={clip} property="volume" />
         </div>
       </div>
     </div>
