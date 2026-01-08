@@ -5,6 +5,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 ## Features
 
 - **Multi-track Timeline** - Support for video, audio, text, and sticker tracks
+- **Clip Display** - Filename labels (not full paths) and always-visible duration badges
 - **Clip Manipulation** - Drag to reposition, trim handles to adjust duration, drag timeline end handle to cut/extend timeline
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
 - **Keyframe Animation** - Full animation system with interpolation, easing functions, and timeline visualization
@@ -294,10 +295,11 @@ Property editor component for managing keyframes.
 
 Features:
 - Add keyframes at current playhead position
-- Edit keyframe time and easing functions
+- Edit keyframe time (displayed as MM:SS:FF timecode) and easing functions
 - Live value preview with slider/input controls
-- Visual indicator when keyframe exists at playhead
-- List view of all keyframes for the property
+- **Click-to-Seek**: Clicking keyframe row seeks playhead to that time
+- **Active Highlight**: Yellow border shows keyframe at current playhead
+- **Smart Slider**: Shows slider when on keyframe; shows "Click a keyframe" message when between keyframes
 
 #### `<KeyframeMarkers />`
 
@@ -315,8 +317,10 @@ Timeline visualization of keyframes as draggable markers.
 Features:
 - Diamond-shaped markers at keyframe positions
 - Drag to reposition keyframes in time
+- **Click-to-Seek**: Clicking a keyframe on timeline seeks playhead there
+- **Playhead Sync**: Yellow glow when playhead is at keyframe position
 - Multi-property indicator (blue dot when multiple properties at same time)
-- Visual feedback for selection and dragging states
+- Yellow highlight during drag operations
 - Event isolation prevents accidental clip selection during drag
 
 #### `<ResizablePanel />`

@@ -119,7 +119,10 @@ Context-sensitive panel for editing selected clip properties.
 -   **`KeyframeEditor`**: Universal keyframe editor component.
     -   Displays current value of any animatable property.
     -   Shows diamond icon to add/indicate keyframes at current playhead position.
-    -   Lists all existing keyframes for the property with time, easing, and delete controls.
+    -   Lists all existing keyframes for the property with timecode display (MM:SS:FF format).
+    -   **Click-to-Seek**: Clicking a keyframe row seeks the playhead to that position.
+    -   **Active Keyframe Highlight**: Yellow border highlights the keyframe at current playhead.
+    -   **Smart Slider Display**: Shows slider when on keyframe or no keyframes exist; shows "Click a keyframe below to edit" message when keyframes exist but playhead is between them.
     -   Integrated into all property panels for seamless animation workflow.
     -   **Smart Editing**: Updates keyframes when present at playhead, otherwise updates base clip property.
     -   **Optimized History**: Uses `onMouseUp`/`onTouchEnd` for sliders, `onBlur` for inputs to prevent history flooding.
@@ -205,6 +208,9 @@ The app includes a comprehensive keyframe animation system (in `src/utils/keyfra
 -   **`KeyframeMarkers`**: Timeline visualization of keyframes as draggable diamond shapes.
     -   Positioned at the bottom of clips on the timeline.
     -   Supports drag-to-reposition via `useKeyframeDrag` hook.
+    -   **Click-to-Seek**: Clicking a keyframe diamond on timeline seeks playhead to that position.
+    -   **Playhead Sync**: Yellow glow indicates keyframe at current playhead position.
+    -   **Drag Feedback**: Yellow highlight during keyframe drag operations.
     -   Visual indicator shows multiple properties at same time point.
     -   Uses memoized pointer event wrapping to prevent event bubbling to parent clip during drag.
 
