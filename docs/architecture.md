@@ -108,14 +108,21 @@ Responsible for manipulation and editing.
 Context-sensitive panel for editing selected clip properties.
 
 -   **`ContextPanel`**: Main container that switches between different property editors based on clip type.
+    -   **Non-blocking Modal**: Uses `modal={false}` to allow interaction with timeline while panel is open.
+    -   **Persistent State**: Panel remains open until explicitly closed, preserving editing context.
 -   **`VideoProperties`**: Controls for video clips (volume, playback rate, etc.).
+    -   All edits tracked in history for undo/redo support.
 -   **`AudioProperties`**: Controls for audio clips (volume, fade in/out, etc.).
+    -   All edits tracked in history for undo/redo support.
 -   **`TextProperties`**: Controls for text clips (content, font, color, alignment, etc.).
+    -   All edits tracked in history for undo/redo support.
 -   **`KeyframeEditor`**: Universal keyframe editor component.
     -   Displays current value of any animatable property.
     -   Shows diamond icon to add/indicate keyframes at current playhead position.
     -   Lists all existing keyframes for the property with time, easing, and delete controls.
     -   Integrated into all property panels for seamless animation workflow.
+    -   **Smart Editing**: Updates keyframes when present at playhead, otherwise updates base clip property.
+    -   **Optimized History**: Uses `onMouseUp`/`onTouchEnd` for sliders, `onBlur` for inputs to prevent history flooding.
 
 ## 4. Key Workflows
 
@@ -212,6 +219,64 @@ The app includes a comprehensive keyframe animation system (in `src/utils/keyfra
 -   `removeKeyframe()`: Deletes a keyframe by ID.
 -   All actions support undo/redo through the history system.
 
+### Undo/Redo System
+The app implements a comprehensive history tracking system for all editing operations (in `src/stores/timelineStore.ts`):
+
+**1. History Structure:**
+-   Stores snapshots of `tracks` and `clips` state in an array.
+-   Maintains a `historyIndex` pointer for navigation.
+-   Limits history to 50 entries (configurable via `maxHistoryLength`).
+
+**2. Tracked Operations:**
+-   **Clip Operations**: Add, remove, move, trim, split, merge
+-   **Track Operations**: Add, remove, reorder
+-   **Property Edits**: All changes in VideoProperties, AudioProperties, TextProperties
+-   **Keyframe Operations**: Add, update, delete, change timing/easing
+-   **Drag & Drop**: Clip dragging, trimming handles, keyframe repositioning
+
+**3. History Optimization Pattern:**
+-   **Before Action**: `saveToHistory()` is called before the operation executes.
+-   **Range Sliders**: Use `onMouseUp`/`onTouchEnd` to save history only after dragging completes.
+-   **Text/Number Inputs**: Use `onBlur` to save history only after editing finishes.
+-   **Immediate Actions**: Buttons, dropdowns, and single-click operations save immediately.
+-   **Result**: Clean undo stack with one entry per complete user action, no intermediate states.
+
+**4. Implementation Pattern:**
+```typescript
+// Example from property panels:
+const saveToHistory = useTimelineStore((state) => state.saveToHistory);
+
+// Slider: save on release, not during drag
+<input
+  type="range"
+  onChange={(e) => updateValue(e.target.value)}
+  onMouseUp={(e) => {
+    saveToHistory();
+    updateValue(e.target.value);
+  }}
+/>
+
+// Text input: save on blur, not during typing
+<input
+  type="text"
+  onChange={(e) => updateValue(e.target.value)}
+  onBlur={(e) => {
+    saveToHistory();
+    updateValue(e.target.value);
+  }}
+/>
+
+// Button: save immediately on click
+<button onClick={() => {
+  saveToHistory();
+  performAction();
+}}>
+```
+
+**5. Keyboard Shortcuts:**
+-   `Ctrl/Cmd + Z`: Undo - reverts to previous history state
+-   `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y`: Redo - moves forward in history
+
 ## 5. Styling & Assets
 -   **Tailwind CSS**: Used for 99% of styling.
 -   **`index.css`**: Global resets and specific scrollbar styling.
@@ -221,6 +286,7 @@ The app includes a comprehensive keyframe animation system (in `src/utils/keyfra
 -   **State**: Always add new global "truth" to `timelineStore`. Avoid local state for data that needs to persist or be shared.
 -   **Optimization**: Use granular selectors (e.g., `useTimelineStore(state => state.fps)`) to prevent full re-renders of the Timeline on every frame update.
 -   **Export**: If modifying export logic, ensure changes are mirrored in both `ffmpegExporter` and `videoExporter` if possible, and ALWAYS verify frame synchronization.
+-   **Undo/Redo**: When adding new editing features, always call `saveToHistory()` before state mutations. For continuous inputs (sliders, text fields), use `onMouseUp`/`onBlur` to avoid flooding the history stack.
 
 ## 7. Business Logic & Mechanics
 
