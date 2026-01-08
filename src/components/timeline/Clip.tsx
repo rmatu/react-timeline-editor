@@ -213,13 +213,16 @@ export const Clip = memo(function Clip({
   );
 });
 
-// Helper to extract filename from URL
+// Helper to extract filename from URL (works with both absolute and relative URLs)
 function getFileName(url: string): string {
+  if (!url) return "";
+  // Simple approach that works for both absolute and relative URLs
+  const filename = url.split("/").pop() || "";
+  // Remove any query params
+  const cleanName = filename.split("?")[0];
   try {
-    const pathname = new URL(url).pathname;
-    const filename = pathname.split("/").pop() || "";
-    return decodeURIComponent(filename);
+    return decodeURIComponent(cleanName);
   } catch {
-    return url;
+    return cleanName;
   }
 }
