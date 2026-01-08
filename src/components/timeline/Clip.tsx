@@ -71,15 +71,18 @@ export const Clip = memo(function Clip({
     disabled,
   });
 
-  // Handle click to select
+  // Handle click to select and seek playhead to clip start
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (disabled) return;
       const multi = e.metaKey || e.ctrlKey || e.shiftKey;
       onSelect(clip.id, multi);
+      
+      // Seek playhead to clip start when clicking
+      useTimelineStore.getState().setCurrentTime(clip.startTime);
     },
-    [clip.id, onSelect, disabled]
+    [clip.id, clip.startTime, onSelect, disabled]
   );
 
   // Handle double-click (could open clip editor)

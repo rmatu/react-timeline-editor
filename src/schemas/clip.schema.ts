@@ -62,6 +62,11 @@ export const TextClipSchema = BaseClipSchema.extend({
     .enum(["none", "fade", "slide", "typewriter"])
     .optional()
     .default("none"),
+  // Transform properties (base values, can be overridden by keyframes)
+  scale: z.number().positive().default(1),
+  rotation: z.number().default(0), // Degrees
+  opacity: z.number().min(0).max(1).default(1),
+  maxWidth: z.number().positive().optional(), // Max width in pixels for text wrapping
 });
 
 // Sticker/effect clip schema

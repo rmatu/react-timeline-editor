@@ -237,6 +237,11 @@ export function getPropertyAtTime<T extends KeyframeValue>(
     return defaultValue;
   }
 
+  // Single keyframe: always use its value
+  if (propertyKeyframes.length === 1) {
+    return propertyKeyframes[0].value as T;
+  }
+
   // Before first keyframe: use first keyframe value
   if (time <= propertyKeyframes[0].time) {
     return propertyKeyframes[0].value as T;
@@ -261,6 +266,11 @@ export function getPropertyAtTime<T extends KeyframeValue>(
       nextKf = propertyKeyframes[i + 1];
       break;
     }
+  }
+
+  // Safety check - this shouldn't happen but prevents runtime errors
+  if (!prevKf || !nextKf || prevKf.time === nextKf.time) {
+    return prevKf?.value as T ?? defaultValue;
   }
 
   // Calculate progress between keyframes
