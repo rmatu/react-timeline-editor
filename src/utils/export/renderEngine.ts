@@ -3,9 +3,11 @@
  *
  * Mirrors VideoPreview.tsx rendering logic to ensure WYSIWYG export.
  * Renders all layers (video, text, stickers) to canvas for frame-accurate export.
+ * Supports keyframe animations via the same interpolation logic as preview.
  */
 
 import type { Clip, Track, VideoClip, TextClip, StickerClip } from "@/schemas";
+import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 
 // ============================================================================
 // Types
@@ -155,6 +157,9 @@ export class RenderEngine {
       const vid = this.resources!.videoElements.get(clip.id);
       if (!vid) continue;
 
+      // Get animated properties for keyframe animations
+      const animated = getAnimatedPropertiesAtTime(clip, time);
+
       // Calculate seek time with playback rate
       const seekTime = clip.sourceStartTime + (time - clip.startTime) * clip.playbackRate;
 
@@ -169,7 +174,20 @@ export class RenderEngine {
       const x = (this.width - w) / 2;
       const y = (this.height - h) / 2;
 
+      // Apply keyframe animations (opacity, scale, rotation)
+      this.ctx.save();
+      this.ctx.globalAlpha = animated.opacity;
+
+      // Apply scale and rotation transforms around center
+      const centerX = x + w / 2;
+      const centerY = y + h / 2;
+      this.ctx.translate(centerX, centerY);
+      this.ctx.scale(animated.scale, animated.scale);
+      this.ctx.rotate((animated.rotation * Math.PI) / 180);
+      this.ctx.translate(-centerX, -centerY);
+
       this.ctx.drawImage(vid, x, y, w, h);
+      this.ctx.restore();
     }
   }
 
@@ -208,17 +226,20 @@ export class RenderEngine {
       const img = this.resources!.stickerImages.get(clip.id);
       if (!img) continue;
 
+      // Get animated properties for keyframe animations
+      const animated = getAnimatedPropertiesAtTime(clip, time);
+
       const ctx = this.ctx;
       ctx.save();
 
-      // Position (percentage to pixels, centered)
-      const x = (clip.position.x / 100) * this.width;
-      const y = (clip.position.y / 100) * this.height;
+      // Position (use animated position, percentage to pixels, centered)
+      const x = (animated.position.x / 100) * this.width;
+      const y = (animated.position.y / 100) * this.height;
 
       ctx.translate(x, y);
-      ctx.rotate((clip.rotation * Math.PI) / 180);
-      ctx.scale(clip.scale, clip.scale);
-      ctx.globalAlpha = clip.opacity;
+      ctx.rotate((animated.rotation * Math.PI) / 180);
+      ctx.scale(animated.scale, animated.scale);
+      ctx.globalAlpha = animated.opacity;
 
       // Draw centered
       ctx.drawImage(img, -img.width / 2, -img.height / 2);
@@ -231,21 +252,30 @@ export class RenderEngine {
     const textClips = this.getActiveClips<TextClip>("text", time);
 
     for (const clip of textClips) {
+      // Get animated properties for keyframe animations
+      const animated = getAnimatedPropertiesAtTime(clip, time);
+
       const ctx = this.ctx;
 
-      // Position (percentage to pixels)
-      const x = (clip.position.x / 100) * this.width;
-      const y = (clip.position.y / 100) * this.height;
+      // Position (use animated position, percentage to pixels)
+      const x = (animated.position.x / 100) * this.width;
+      const y = (animated.position.y / 100) * this.height;
 
       ctx.save();
 
-      // Apply animation (if any)
-      const animationProgress = this.calculateAnimationProgress(clip, time);
-      this.applyTextAnimation(clip, animationProgress);
+      // Apply keyframe animations (opacity, scale, rotation)
+      ctx.globalAlpha = animated.opacity;
+      ctx.translate(x, y);
+      ctx.scale(animated.scale, animated.scale);
+      ctx.rotate((animated.rotation * Math.PI) / 180);
+
+      // Use animated fontSize and color
+      const fontSize = animated.fontSize ?? clip.fontSize;
+      const color = animated.color ?? clip.color;
 
       // Font setup
-      ctx.font = `${clip.fontWeight === "bold" ? "bold " : ""}${clip.fontSize}px ${clip.fontFamily}, sans-serif`;
-      ctx.fillStyle = clip.color;
+      ctx.font = `${clip.fontWeight === "bold" ? "bold " : ""}${fontSize}px ${clip.fontFamily}, sans-serif`;
+      ctx.fillStyle = color;
       ctx.textAlign = clip.textAlign;
       ctx.textBaseline = "middle";
 
@@ -253,16 +283,16 @@ export class RenderEngine {
       if (clip.backgroundColor) {
         const metrics = ctx.measureText(clip.content);
         const padding = 8;
-        const bgH = clip.fontSize * 1.2;
+        const bgH = fontSize * 1.2;
         const bgW = metrics.width + padding * 2;
 
         ctx.fillStyle = clip.backgroundColor;
-        let rx = x;
-        if (clip.textAlign === "center") rx = x - bgW / 2;
-        if (clip.textAlign === "right") rx = x - bgW;
+        let rx = 0; // Now drawing relative to translated origin
+        if (clip.textAlign === "center") rx = -bgW / 2;
+        if (clip.textAlign === "right") rx = -bgW;
 
-        ctx.fillRect(rx, y - bgH / 2, bgW, bgH);
-        ctx.fillStyle = clip.color;
+        ctx.fillRect(rx, -bgH / 2, bgW, bgH);
+        ctx.fillStyle = color;
       }
 
       // Shadow (when no background) - matches TextOverlay.tsx
@@ -272,29 +302,9 @@ export class RenderEngine {
         ctx.shadowOffsetY = 2;
       }
 
-      ctx.fillText(clip.content, x, y);
+      ctx.fillText(clip.content, 0, 0); // Draw at origin (already translated)
       ctx.restore();
     }
-  }
-
-  // ==========================================================================
-  // Animation Support (Future Enhancement)
-  // ==========================================================================
-
-  private calculateAnimationProgress(clip: TextClip, time: number): number {
-    // Returns 0-1 progress for animation
-    const clipProgress = (time - clip.startTime) / clip.duration;
-    return Math.max(0, Math.min(1, clipProgress));
-  }
-
-  private applyTextAnimation(clip: TextClip, _progress: number): void {
-    // TODO: Implement animations based on clip.animation
-    // - 'fade': opacity from 0 to 1
-    // - 'slide': translateY from offset to 0
-    // - 'typewriter': reveal characters progressively
-    if (clip.animation === "none" || !clip.animation) return;
-
-    // Animation implementation placeholder for future
   }
 
   // ==========================================================================

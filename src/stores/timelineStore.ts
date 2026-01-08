@@ -3,6 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { enableMapSet } from "immer";
 import { devtools } from "zustand/middleware";
 import type { Clip, Track } from "@/schemas";
+import type { Keyframe, KeyframeValue, EasingType } from "@/schemas/keyframe.schema";
 import {
   DEFAULT_ZOOM,
   MIN_ZOOM,
@@ -151,6 +152,14 @@ interface TimelineActions {
   addMediaItem: (item: MediaItem) => void;
   removeMediaItem: (id: string) => void;
   updateMediaItem: (id: string, updates: Partial<MediaItem>) => void;
+
+  // Keyframe actions
+  addKeyframe: (clipId: string, keyframe: Omit<Keyframe, "id">) => string;
+  updateKeyframe: (clipId: string, keyframeId: string, updates: Partial<Omit<Keyframe, "id">>) => void;
+  removeKeyframe: (clipId: string, keyframeId: string) => void;
+  addKeyframeAtCurrentTime: (clipId: string, property: string, value: KeyframeValue, easing?: EasingType) => string;
+  clearKeyframesForProperty: (clipId: string, property: string) => void;
+  setKeyframesForProperty: (clipId: string, property: string, keyframes: Omit<Keyframe, "id">[]) => void;
 }
 
 type TimelineStore = TimelineState & TimelineActions;
@@ -687,6 +696,91 @@ export const useTimelineStore = create<TimelineStore>()(
           const item = state.mediaLibrary.get(id);
           if (item) {
             state.mediaLibrary.set(id, { ...item, ...updates });
+          }
+        }),
+
+      // Keyframe actions
+      addKeyframe: (clipId, keyframe) => {
+        const id = crypto.randomUUID();
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (clip) {
+            const newKeyframes = [...(clip.keyframes || []), { ...keyframe, id }];
+            state.clips.set(clipId, { ...clip, keyframes: newKeyframes } as Clip);
+          }
+        });
+        return id;
+      },
+
+      updateKeyframe: (clipId, keyframeId, updates) =>
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (clip && clip.keyframes) {
+            const newKeyframes = clip.keyframes.map((kf) =>
+              kf.id === keyframeId ? { ...kf, ...updates } : kf
+            );
+            state.clips.set(clipId, { ...clip, keyframes: newKeyframes } as Clip);
+          }
+        }),
+
+      removeKeyframe: (clipId, keyframeId) =>
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (clip && clip.keyframes) {
+            const newKeyframes = clip.keyframes.filter((kf) => kf.id !== keyframeId);
+            state.clips.set(clipId, { ...clip, keyframes: newKeyframes } as Clip);
+          }
+        }),
+
+      addKeyframeAtCurrentTime: (clipId, property, value, easing = "linear") => {
+        const state = get();
+        const clip = state.clips.get(clipId);
+        if (!clip) return "";
+
+        const time = state.currentTime - clip.startTime; // Clip-relative time
+        // Clamp time to clip bounds
+        const clampedTime = Math.max(0, Math.min(clip.duration, time));
+        const id = crypto.randomUUID();
+
+        set((s) => {
+          const c = s.clips.get(clipId);
+          if (c) {
+            // Remove existing keyframe at same time for same property (within tolerance)
+            const filtered = (c.keyframes || []).filter(
+              (kf) => !(kf.property === property && Math.abs(kf.time - clampedTime) < 0.01)
+            );
+            const newKeyframes = [
+              ...filtered,
+              { id, property, time: clampedTime, value, easing },
+            ];
+            s.clips.set(clipId, { ...c, keyframes: newKeyframes } as Clip);
+          }
+        });
+
+        return id;
+      },
+
+      clearKeyframesForProperty: (clipId, property) =>
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (clip && clip.keyframes) {
+            const newKeyframes = clip.keyframes.filter((kf) => kf.property !== property);
+            state.clips.set(clipId, { ...clip, keyframes: newKeyframes } as Clip);
+          }
+        }),
+
+      setKeyframesForProperty: (clipId, property, keyframes) =>
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (clip) {
+            // Remove existing keyframes for property
+            const filtered = (clip.keyframes || []).filter((kf) => kf.property !== property);
+            // Add new keyframes with generated IDs
+            const newKeyframes = [
+              ...filtered,
+              ...keyframes.map((kf) => ({ ...kf, id: crypto.randomUUID() })),
+            ];
+            state.clips.set(clipId, { ...clip, keyframes: newKeyframes } as Clip);
           }
         }),
     })),

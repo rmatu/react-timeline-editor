@@ -1,49 +1,99 @@
+import { useState, useEffect, useRef } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { VideoProperties } from "./VideoProperties";
 import { AudioProperties } from "./AudioProperties";
 import { TextProperties } from "./TextProperties";
+import { X } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export const ContextPanel = () => {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const clips = useTimelineStore((state) => state.clips);
 
-  // Determine what to show
-  if (selectedClipIds.length === 0) {
-    return null;
-  }
+  // Panel stays open until explicitly closed
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  // Track the clip being edited (persists even when deselected)
+  const [editingClipId, setEditingClipId] = useState<string | null>(null);
+  const prevSelectedRef = useRef<string[]>([]);
 
-  if (selectedClipIds.length > 1) {
-     return (
-      <div className="flex h-full w-80 min-w-80 flex-col border-l border-zinc-800 bg-zinc-950">
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center text-zinc-500">
-          <div className="flex items-center justify-center h-12 w-12 rounded-full bg-zinc-900 border border-zinc-800">
-            <span className="text-lg font-bold text-zinc-400">{selectedClipIds.length}</span>
-          </div>
-          <p className="text-sm">Multiple clips selected</p>
-        </div>
-      </div>
-    );
-  }
+  // Open panel when a clip is selected, update editing clip
+  useEffect(() => {
+    if (selectedClipIds.length > 0) {
+      // New selection - open panel and set editing clip
+      setIsPanelOpen(true);
+      setEditingClipId(selectedClipIds[0]);
+    }
+    prevSelectedRef.current = selectedClipIds;
+  }, [selectedClipIds]);
 
-  const clipId = selectedClipIds[0];
-  const clip = clips.get(clipId);
+  const handleClose = () => {
+    setIsPanelOpen(false);
+    setEditingClipId(null);
+  };
 
-  if (!clip) return null; // Should not happen ideally
+  // Get the clip being edited (may differ from current selection)
+  const clip = editingClipId ? clips.get(editingClipId) : undefined;
+
+  // If the editing clip was deleted, close the panel
+  useEffect(() => {
+    if (editingClipId && !clips.has(editingClipId)) {
+      setIsPanelOpen(false);
+      setEditingClipId(null);
+    }
+  }, [clips, editingClipId]);
+
+  // Determine title based on the clip being edited
+  const getTitle = () => {
+    if (clip) {
+      return `${clip.type.charAt(0).toUpperCase() + clip.type.slice(1)} Properties`;
+    }
+    return "Properties";
+  };
 
   return (
-    <div className="flex h-full w-80 min-w-80 flex-col border-l border-zinc-800 bg-zinc-950">
-      <div className="flex items-center border-b border-zinc-800 px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">
-            {clip.type.charAt(0).toUpperCase() + clip.type.slice(1)} Properties
-        </h2>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto p-4">
-        {clip.type === "video" && <VideoProperties clip={clip} />}
-        {clip.type === "audio" && <AudioProperties clip={clip} />}
-        {clip.type === "text" && <TextProperties clip={clip} />}
-        {clip.type === "sticker" && <div className="text-xs text-zinc-500">Sticker properties needed</div>}
-      </div>
-    </div>
+    <Sheet open={isPanelOpen}>
+      <SheetContent
+        side="right"
+        className="w-80 bg-zinc-900 border-l border-zinc-700 p-0 rounded-l-xl shadow-2xl flex flex-col"
+        showOverlay={false}
+        showCloseButton={false}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        {/* Modal-style header with close button */}
+        <SheetHeader className="border-b border-zinc-800 px-4 py-3 flex flex-row items-center justify-between shrink-0">
+          <SheetTitle className="text-sm font-semibold text-zinc-100">
+            {getTitle()}
+          </SheetTitle>
+          <button
+            onClick={handleClose}
+            className="flex items-center justify-center h-7 w-7 rounded-md bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-400 hover:text-zinc-100"
+            aria-label="Close panel"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+          {clip ? (
+            <>
+              {clip.type === "video" && <VideoProperties clip={clip} />}
+              {clip.type === "audio" && <AudioProperties clip={clip} />}
+              {clip.type === "text" && <TextProperties clip={clip} />}
+              {clip.type === "sticker" && (
+                <div className="text-xs text-zinc-500">
+                  Sticker properties coming soon
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 };
