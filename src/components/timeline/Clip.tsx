@@ -32,7 +32,7 @@ export const Clip = memo(function Clip({
   disabled = false,
 }: ClipProps) {
   void _scrollX; // Used for potential future viewport optimizations
-  const { isTrimming: isAnyTrimming } = useTimelineStore();
+  const { isTrimming: isAnyTrimming, currentTime } = useTimelineStore();
 
   const [isHovered, setIsHovered] = useState(false);
 
@@ -199,6 +199,7 @@ export const Clip = memo(function Clip({
           <KeyframeMarkers
             clip={clip}
             zoomLevel={zoomLevel}
+            currentTime={currentTime}
             onKeyframeClick={(_kfId, e) => {
               e.stopPropagation();
               // Select the clip when clicking a keyframe

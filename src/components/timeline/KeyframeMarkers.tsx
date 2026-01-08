@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface KeyframeMarkersProps {
   clip: Clip;
   zoomLevel: number;
+  currentTime: number;  // Absolute timeline time for playhead highlight
   selectedKeyframeId?: string;
   onKeyframeClick?: (keyframeId: string, e: React.MouseEvent) => void;
 }
@@ -20,6 +21,7 @@ interface DraggableKeyframeProps {
   keyframes: Keyframe[];
   zoomLevel: number;
   isSelected: boolean;
+  isAtPlayhead: boolean;  // True when playhead is at this keyframe
   onKeyframeClick?: (keyframeId: string, e: React.MouseEvent) => void;
 }
 
@@ -30,6 +32,7 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
   keyframes,
   zoomLevel,
   isSelected,
+  isAtPlayhead,
   onKeyframeClick,
 }: DraggableKeyframeProps) {
   const keyframeIds = useMemo(() => keyframes.map((kf) => kf.id), [keyframes]);
@@ -89,7 +92,9 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
         className={cn(
           "transition-all drop-shadow-md",
           isDragging
-            ? "fill-white text-white scale-150 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+            ? "fill-yellow-300 text-yellow-300 scale-150"
+            : isAtPlayhead
+            ? "fill-yellow-400 text-yellow-400 scale-125 drop-shadow-[0_0_6px_rgba(250,204,21,0.6)]"
             : isSelected
             ? "fill-yellow-400 text-yellow-400 scale-125"
             : "fill-white/80 text-white/80 hover:fill-yellow-300 hover:text-yellow-300 hover:scale-110"
@@ -111,6 +116,7 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
 export const KeyframeMarkers = memo(function KeyframeMarkers({
   clip,
   zoomLevel,
+  currentTime,
   selectedKeyframeId,
   onKeyframeClick,
 }: KeyframeMarkersProps) {
@@ -122,12 +128,16 @@ export const KeyframeMarkers = memo(function KeyframeMarkers({
     return Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
   }, [clip.keyframes]);
 
+  // Calculate clip-relative time for playhead detection
+  const clipTime = currentTime - clip.startTime;
+
   if (keyframeGroups.length === 0) return null;
 
   return (
     <div className="absolute inset-x-0 bottom-0 h-6 flex items-end pointer-events-none overflow-visible">
       {keyframeGroups.map(([time, keyframes]) => {
         const isSelected = keyframes.some((kf) => kf.id === selectedKeyframeId);
+        const isAtPlayhead = Math.abs(time - clipTime) < 0.05;
 
         return (
           <DraggableKeyframe
@@ -137,6 +147,7 @@ export const KeyframeMarkers = memo(function KeyframeMarkers({
             keyframes={keyframes}
             zoomLevel={zoomLevel}
             isSelected={isSelected}
+            isAtPlayhead={isAtPlayhead}
             onKeyframeClick={onKeyframeClick}
           />
         );
