@@ -170,20 +170,21 @@ export const Clip = memo(function Clip({
           </>
         )}
 
-        {/* Clip name/label */}
         {/* Clip name/label - hide for text as it renders its own content */}
         {width > 60 && clip.type !== "text" && (
-          <div className="absolute inset-x-2 top-1 truncate text-xs font-medium text-white/80">
+          <div className="absolute inset-x-2 top-1 truncate text-xs font-medium text-white/80 drop-shadow-sm">
             {clip.type === "video" || clip.type === "audio"
               ? (clip as any).name || getFileName((clip as any).sourceUrl)
               : clip.type}
           </div>
         )}
 
-        {/* Duration badge (for selected clips under 10s) */}
-        {isSelected && clip.duration < 10 && width > 40 && (
-          <div className="absolute bottom-1 right-1 rounded bg-black/50 px-1 text-[10px] text-white/70">
-            {clip.duration.toFixed(1)}s
+        {/* Duration badge - always show in bottom right corner */}
+        {width > 50 && (
+          <div className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono text-white/80">
+            {clip.duration >= 60 
+              ? `${Math.floor(clip.duration / 60)}:${(clip.duration % 60).toFixed(1).padStart(4, '0')}`
+              : `${clip.duration.toFixed(1)}s`}
           </div>
         )}
 
