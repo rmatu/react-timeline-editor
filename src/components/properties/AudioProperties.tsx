@@ -8,6 +8,7 @@ interface AudioPropertiesProps {
 
 export const AudioProperties = ({ clip }: AudioPropertiesProps) => {
   const updateClip = useTimelineStore((state) => state.updateClip);
+  const saveToHistory = useTimelineStore((state) => state.saveToHistory);
 
   return (
     <div className="space-y-4">
@@ -23,6 +24,14 @@ export const AudioProperties = ({ clip }: AudioPropertiesProps) => {
             onChange={(e) =>
               updateClip(clip.id, { volume: parseFloat(e.target.value) })
             }
+            onMouseUp={(e) => {
+              saveToHistory();
+              updateClip(clip.id, { volume: parseFloat((e.target as HTMLInputElement).value) });
+            }}
+            onTouchEnd={(e) => {
+              saveToHistory();
+              updateClip(clip.id, { volume: parseFloat((e.target as HTMLInputElement).value) });
+            }}
             className="flex-1"
           />
           <span className="w-8 text-xs text-zinc-400">
@@ -42,6 +51,10 @@ export const AudioProperties = ({ clip }: AudioPropertiesProps) => {
             onChange={(e) =>
               updateClip(clip.id, { fadeIn: parseFloat(e.target.value) })
             }
+            onBlur={(e) => {
+              saveToHistory();
+              updateClip(clip.id, { fadeIn: parseFloat(e.target.value) });
+            }}
             className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -58,6 +71,10 @@ export const AudioProperties = ({ clip }: AudioPropertiesProps) => {
             onChange={(e) =>
               updateClip(clip.id, { fadeOut: parseFloat(e.target.value) })
             }
+            onBlur={(e) => {
+              saveToHistory();
+              updateClip(clip.id, { fadeOut: parseFloat(e.target.value) });
+            }}
             className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none"
           />
         </div>

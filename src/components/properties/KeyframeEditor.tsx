@@ -65,8 +65,6 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
       (kf) => Math.abs(kf.time - clipTime) < 0.05
     );
 
-    saveToHistory();
-
     if (existingKf) {
       // Update the keyframe value
       updateKeyframe(clip.id, existingKf.id, { value });
@@ -74,6 +72,12 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
       // No keyframe at current time - update base clip property
       updateClip(clip.id, { [property]: value } as Partial<Clip>);
     }
+  };
+
+  const handleValueCommit = (value: KeyframeValue) => {
+    // Save history before committing the final value
+    saveToHistory();
+    handleValueChange(value);
   };
 
   return (
@@ -113,6 +117,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
         value={currentValue}
         meta={meta}
         onChange={handleValueChange}
+        onCommit={handleValueCommit}
         disabled={!isWithinClip}
       />
 
@@ -189,10 +194,11 @@ interface ValueInputProps {
   value: KeyframeValue;
   meta: PropertyMeta;
   onChange: (value: KeyframeValue) => void;
+  onCommit: (value: KeyframeValue) => void;
   disabled?: boolean;
 }
 
-function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
+function ValueInput({ value, meta, onChange, onCommit, disabled }: ValueInputProps) {
   if (meta.valueType === "number") {
     return (
       <div className="flex items-center gap-2">
@@ -204,6 +210,8 @@ function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
           step={meta.step ?? 0.01}
           disabled={disabled}
           onChange={(e) => onChange(parseFloat(e.target.value))}
+          onMouseUp={(e) => onCommit(parseFloat((e.target as HTMLInputElement).value))}
+          onTouchEnd={(e) => onCommit(parseFloat((e.target as HTMLInputElement).value))}
           className="flex-1 h-1.5 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-blue-500 disabled:opacity-50"
         />
         <div className="flex items-center gap-1">
@@ -215,6 +223,7 @@ function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
             step={meta.step}
             disabled={disabled}
             onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            onBlur={(e) => onCommit(parseFloat(e.target.value) || 0)}
             className="w-14 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300 disabled:opacity-50"
           />
           {meta.unit && (
@@ -233,6 +242,7 @@ function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
           value={value as string}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onCommit(e.target.value)}
           className="h-8 w-8 rounded border border-zinc-700 bg-transparent cursor-pointer disabled:opacity-50"
         />
         <input
@@ -240,6 +250,7 @@ function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
           value={value as string}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onCommit(e.target.value)}
           className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300 font-mono disabled:opacity-50"
           pattern="^#[0-9A-Fa-f]{6}$"
         />
@@ -263,6 +274,9 @@ function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
             onChange={(e) =>
               onChange({ ...pos, x: parseFloat(e.target.value) || 0 })
             }
+            onBlur={(e) =>
+              onCommit({ ...pos, x: parseFloat(e.target.value) || 0 })
+            }
             className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300 disabled:opacity-50"
           />
           <span className="text-xs text-zinc-500">%</span>
@@ -278,6 +292,9 @@ function ValueInput({ value, meta, onChange, disabled }: ValueInputProps) {
             disabled={disabled}
             onChange={(e) =>
               onChange({ ...pos, y: parseFloat(e.target.value) || 0 })
+            }
+            onBlur={(e) =>
+              onCommit({ ...pos, y: parseFloat(e.target.value) || 0 })
             }
             className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300 disabled:opacity-50"
           />
