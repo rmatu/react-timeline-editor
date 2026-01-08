@@ -112,7 +112,13 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
         </button>
       </div>
 
-      {/* Current value input */}
+      {/* Current value input with indicator */}
+      {hasKeyframeAtCurrentTime && (
+        <div className="flex items-center gap-1.5 text-[10px] text-yellow-400 bg-yellow-400/10 rounded px-2 py-1 mb-1">
+          <Diamond size={8} className="fill-current" />
+          <span>Editing keyframe at {clipTime.toFixed(2)}s</span>
+        </div>
+      )}
       <ValueInput
         value={currentValue}
         meta={meta}

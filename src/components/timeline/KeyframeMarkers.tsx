@@ -89,7 +89,7 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
         className={cn(
           "transition-all drop-shadow-md",
           isDragging
-            ? "fill-yellow-300 text-yellow-300 scale-150"
+            ? "fill-white text-white scale-150 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
             : isSelected
             ? "fill-yellow-400 text-yellow-400 scale-125"
             : "fill-white/80 text-white/80 hover:fill-yellow-300 hover:text-yellow-300 hover:scale-110"
