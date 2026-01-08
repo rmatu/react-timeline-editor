@@ -8,6 +8,7 @@ interface VideoPropertiesProps {
 
 export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
   const updateClip = useTimelineStore((state) => state.updateClip);
+  const saveToHistory = useTimelineStore((state) => state.saveToHistory);
 
   return (
     <div className="space-y-4">
@@ -23,6 +24,14 @@ export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
             onChange={(e) =>
               updateClip(clip.id, { volume: parseFloat(e.target.value) })
             }
+            onMouseUp={(e) => {
+              saveToHistory();
+              updateClip(clip.id, { volume: parseFloat((e.target as HTMLInputElement).value) });
+            }}
+            onTouchEnd={(e) => {
+              saveToHistory();
+              updateClip(clip.id, { volume: parseFloat((e.target as HTMLInputElement).value) });
+            }}
             className="flex-1"
           />
           <span className="w-8 text-xs text-zinc-400">
@@ -37,9 +46,10 @@ export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
         </label>
         <select
           value={clip.playbackRate}
-          onChange={(e) =>
-            updateClip(clip.id, { playbackRate: parseFloat(e.target.value) })
-          }
+          onChange={(e) => {
+            saveToHistory();
+            updateClip(clip.id, { playbackRate: parseFloat(e.target.value) });
+          }}
           className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none"
         >
           <option value="0.25">0.25x</option>

@@ -56,7 +56,7 @@ export const ContextPanel = () => {
   };
 
   return (
-    <Sheet open={isPanelOpen}>
+    <Sheet open={isPanelOpen} modal={false}>
       <SheetContent
         side="right"
         className="w-80 bg-zinc-900 border-l border-zinc-700 p-0 rounded-l-xl shadow-2xl flex flex-col"
