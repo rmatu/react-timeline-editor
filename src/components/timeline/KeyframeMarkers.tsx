@@ -5,6 +5,7 @@ import type { Keyframe } from "@/schemas/keyframe.schema";
 import { timeToPixels } from "@/utils/time";
 import { getKeyframesByTime } from "@/utils/keyframes";
 import { useKeyframeDrag } from "@/hooks/useKeyframeDrag";
+import { useTimelineStore } from "@/stores/timelineStore";
 import { cn } from "@/lib/utils";
 
 interface KeyframeMarkersProps {
@@ -53,10 +54,14 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (!isDragging) {
+        // Seek playhead to this keyframe's time (absolute time = clip start + keyframe time)
+        const setCurrentTime = useTimelineStore.getState().setCurrentTime;
+        setCurrentTime(clip.startTime + time);
+        // Also call the original handler if provided
         onKeyframeClick?.(keyframes[0].id, e);
       }
     },
-    [isDragging, keyframes, onKeyframeClick]
+    [isDragging, keyframes, onKeyframeClick, clip.startTime, time]
   );
 
   // Get bind handlers and wrap them to also stop propagation
