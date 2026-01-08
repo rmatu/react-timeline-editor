@@ -27,22 +27,8 @@ export const TextProperties = ({ clip }: TextPropertiesProps) => {
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400">Font</label>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="number"
-            min="1"
-            value={clip.fontSize}
-            onChange={(e) =>
-              updateClip(clip.id, { fontSize: parseInt(e.target.value) })
-            }
-            onBlur={(e) => {
-              saveToHistory();
-              updateClip(clip.id, { fontSize: parseInt(e.target.value) });
-            }}
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none"
-            placeholder="Size"
-          />
+        <label className="text-xs font-medium text-zinc-400">Style</label>
+        <div className="flex gap-2">
           <button
             onClick={() => {
               saveToHistory();
@@ -50,7 +36,7 @@ export const TextProperties = ({ clip }: TextPropertiesProps) => {
                 fontWeight: clip.fontWeight === "bold" ? "normal" : "bold",
               });
             }}
-            className={`flex items-center justify-center rounded border border-zinc-700 px-2 py-1 transition-colors ${
+            className={`flex items-center justify-center rounded border border-zinc-700 px-3 py-1 transition-colors ${
               clip.fontWeight === "bold"
                 ? "bg-zinc-700 text-white"
                 : "bg-zinc-800 text-zinc-400 hover:text-white"
@@ -59,97 +45,27 @@ export const TextProperties = ({ clip }: TextPropertiesProps) => {
           >
             <Bold size={14} />
           </button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400">Color</label>
-        <div className="flex gap-2">
-          <input
-            type="color"
-            value={clip.color}
-            onChange={(e) => updateClip(clip.id, { color: e.target.value })}
-            onBlur={(e) => {
-              saveToHistory();
-              updateClip(clip.id, { color: e.target.value });
-            }}
-            className="h-8 w-8 cursor-pointer rounded border-none bg-transparent p-0"
-          />
-          <input
-            type="text"
-            value={clip.color}
-            onChange={(e) => updateClip(clip.id, { color: e.target.value })}
-            onBlur={(e) => {
-              saveToHistory();
-              updateClip(clip.id, { color: e.target.value });
-            }}
-            className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none uppercase"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400">Alignment</label>
-        <div className="flex rounded border border-zinc-700 bg-zinc-800 p-0.5">
-          {[
-            { value: "left", icon: AlignLeft },
-            { value: "center", icon: AlignCenter },
-            { value: "right", icon: AlignRight },
-          ].map((option) => (
-            <button
-              key={option.value}
-              onClick={() => {
-                saveToHistory();
-                updateClip(clip.id, { textAlign: option.value as any });
-              }}
-              className={`flex flex-1 items-center justify-center rounded py-1 transition-colors ${
-                clip.textAlign === option.value
-                  ? "bg-zinc-700 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              <option.icon size={14} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400">Position</label>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-zinc-500">X</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={clip.position.x}
-              onChange={(e) =>
-                updateClip(clip.id, { position: { ...clip.position, x: parseFloat(e.target.value) } })
-              }
-              onBlur={(e) => {
-                saveToHistory();
-                updateClip(clip.id, { position: { ...clip.position, x: parseFloat(e.target.value) } });
-              }}
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-zinc-500">Y</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={clip.position.y}
-              onChange={(e) =>
-                updateClip(clip.id, { position: { ...clip.position, y: parseFloat(e.target.value) } })
-              }
-              onBlur={(e) => {
-                saveToHistory();
-                updateClip(clip.id, { position: { ...clip.position, y: parseFloat(e.target.value) } });
-              }}
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none"
-            />
+          <div className="flex flex-1 rounded border border-zinc-700 bg-zinc-800 p-0.5">
+            {[
+              { value: "left", icon: AlignLeft },
+              { value: "center", icon: AlignCenter },
+              { value: "right", icon: AlignRight },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  saveToHistory();
+                  updateClip(clip.id, { textAlign: option.value as any });
+                }}
+                className={`flex flex-1 items-center justify-center rounded py-1 transition-colors ${
+                  clip.textAlign === option.value
+                    ? "bg-zinc-700 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                <option.icon size={14} />
+              </button>
+            ))}
           </div>
         </div>
       </div>

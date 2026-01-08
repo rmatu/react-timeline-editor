@@ -13,34 +13,6 @@ export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400">Volume</label>
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={clip.volume}
-            onChange={(e) =>
-              updateClip(clip.id, { volume: parseFloat(e.target.value) })
-            }
-            onMouseUp={(e) => {
-              saveToHistory();
-              updateClip(clip.id, { volume: parseFloat((e.target as HTMLInputElement).value) });
-            }}
-            onTouchEnd={(e) => {
-              saveToHistory();
-              updateClip(clip.id, { volume: parseFloat((e.target as HTMLInputElement).value) });
-            }}
-            className="flex-1"
-          />
-          <span className="w-8 text-xs text-zinc-400">
-            {Math.round(clip.volume * 100)}%
-          </span>
-        </div>
-      </div>
-
-      <div className="space-y-2">
         <label className="text-xs font-medium text-zinc-400">
           Playback Rate
         </label>
