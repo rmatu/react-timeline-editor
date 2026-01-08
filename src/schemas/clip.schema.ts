@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KeyframeSchema } from "./keyframe.schema";
 
 // Base clip schema with common properties
 const BaseClipSchema = z.object({
@@ -10,6 +11,7 @@ const BaseClipSchema = z.object({
   maxDuration: z.number().positive().optional(), // Maximum duration (for ghost outline)
   locked: z.boolean().default(false),
   muted: z.boolean().default(false),
+  keyframes: z.array(KeyframeSchema).optional(), // Animation keyframes (optional, defaults to [])
 });
 
 // Video clip schema

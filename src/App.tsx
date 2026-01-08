@@ -302,7 +302,7 @@ function App() {
         {/* Sidepanel */}
         <Sidepanel />
 
-        {/* Content Area */}
+        {/* Content Area - now takes full width since ContextPanel is an overlay */}
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           {/* Video Preview Area - min-h-0 allows it to shrink properly */}
           <div className="flex min-h-0 flex-1 items-center justify-center bg-zinc-900 p-4">
@@ -317,10 +317,10 @@ function App() {
           {/* Preview Controls - flex-shrink-0 ensures it's always visible */}
           <PreviewControls className="mx-4 mb-2 flex-shrink-0" />
         </div>
-
-        {/* Right Context Panel */}
-        <ContextPanel />
       </div>
+
+      {/* Right Context Panel - renders as overlay via Sheet portal */}
+      <ContextPanel />
 
       {/* Timeline - now resizable */}
       <ResizablePanel

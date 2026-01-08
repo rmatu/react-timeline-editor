@@ -37,10 +37,27 @@ The core data structures are defined in `src/schemas/index.ts`.
     -   `startTime`: Timeline position (seconds).
     -   `duration`: length on timeline (seconds).
     -   `sourceStartTime`: Start point within the source media (for trimming).
+    -   `keyframes`: Optional array of animation keyframes for property animations.
 -   **Types**:
     -   `VideoClip`: `sourceUrl`, `thumbnailUrl`, `volume`, `thumbnails` (generated cache).
     -   `AudioClip`: `sourceUrl`, `waveformData` (computed RMS peaks), `volume`.
     -   `TextClip`: `content`, `style` (font, size, color), `position` (x/y).
+
+### Keyframes (`Keyframe`)
+-   The atomic unit for animations, defined in `src/schemas/keyframe.schema.ts`.
+-   **Properties**:
+    -   `id`: UUID identifier.
+    -   `property`: The property being animated (e.g., "opacity", "scale", "rotation", "position").
+    -   `time`: Time relative to clip start (0 = clip start).
+    -   `value`: The property value at this keyframe (number, string, or position object).
+    -   `easing`: Easing function type ("linear", "ease-in", "ease-out", "ease-in-out", "cubic-bezier").
+    -   `bezier`: Optional cubic bezier parameters for custom easing curves.
+-   **Animatable Properties**:
+    -   **Common (all clips)**: `opacity`, `scale`, `rotation`
+    -   **Video clips**: `volume`, `position`
+    -   **Audio clips**: `volume`, `pan`
+    -   **Text clips**: `position`, `fontSize`, `color`
+    -   **Sticker clips**: `position`
 
 ## 3. Component Hierarchy
 
@@ -85,6 +102,20 @@ Responsible for manipulation and editing.
         -   **`Track`**: Droppable zone for Dnd.
             -   **`Clip`**: Draggable/Resizable item.
                 -   **`TrimHandle`**: Layouts for left/right edge trimming.
+                -   **`KeyframeMarkers`**: Renders keyframe diamonds at the bottom of clips, draggable for timing adjustments.
+
+### Properties Panel (`src/components/properties`)
+Context-sensitive panel for editing selected clip properties.
+
+-   **`ContextPanel`**: Main container that switches between different property editors based on clip type.
+-   **`VideoProperties`**: Controls for video clips (volume, playback rate, etc.).
+-   **`AudioProperties`**: Controls for audio clips (volume, fade in/out, etc.).
+-   **`TextProperties`**: Controls for text clips (content, font, color, alignment, etc.).
+-   **`KeyframeEditor`**: Universal keyframe editor component.
+    -   Displays current value of any animatable property.
+    -   Shows diamond icon to add/indicate keyframes at current playhead position.
+    -   Lists all existing keyframes for the property with time, easing, and delete controls.
+    -   Integrated into all property panels for seamless animation workflow.
 
 ## 4. Key Workflows
 
@@ -142,6 +173,44 @@ The app uses a unified export system (in `src/utils/export/`) with a hybrid engi
 **3. Routing Logic:**
 -   User preference is handled via `useHardwareAcceleration` in `ExportSettingsModal`.
 -   `App.tsx` routes the request to the appropriate exporter based on settings and browser support.
+
+### Keyframe Animation System
+The app includes a comprehensive keyframe animation system (in `src/utils/keyframes.ts` and `src/schemas/keyframe.schema.ts`):
+
+**1. Data Structure:**
+-   Each clip can have an optional `keyframes` array.
+-   Keyframes store property, time (relative to clip start), value, and easing function.
+-   Supports multiple keyframes per property for complex animations.
+
+**2. Interpolation Engine:**
+-   **Easing Functions**: Linear, ease-in, ease-out, ease-in-out, and custom cubic-bezier curves.
+-   **Value Types**: Numbers (opacity, scale, volume), colors (hex interpolation), positions (x/y objects).
+-   **`getPropertyAtTime()`**: Core interpolation function that calculates property values at any time point.
+    -   Finds surrounding keyframes and interpolates between them using the easing function.
+    -   Falls back to default values if no keyframes exist.
+    -   Returns constant values before first/after last keyframe.
+
+**3. UI Components:**
+-   **`KeyframeEditor`**: Property editor with add/list/edit keyframe controls.
+    -   Diamond icon shows keyframe status at current playhead position.
+    -   Inline editing of keyframe time, easing, and value.
+    -   Live preview updates as you adjust values.
+-   **`KeyframeMarkers`**: Timeline visualization of keyframes as draggable diamond shapes.
+    -   Positioned at the bottom of clips on the timeline.
+    -   Supports drag-to-reposition via `useKeyframeDrag` hook.
+    -   Visual indicator shows multiple properties at same time point.
+
+**4. Preview & Export Integration:**
+-   **Preview**: `VideoPreview.tsx` calls `getAnimatedPropertiesAtTime()` for each clip to apply transforms.
+-   **Export**: `renderEngine.ts` uses the same `getAnimatedPropertiesAtTime()` function to ensure WYSIWYG output.
+-   **Synchronization**: Both preview and export use identical interpolation logic from `keyframes.ts`.
+-   **Performance**: Memoized calculations prevent unnecessary recalculations during playback.
+
+**5. Store Actions:**
+-   `addKeyframeAtCurrentTime()`: Creates a keyframe at the playhead with current property value.
+-   `updateKeyframe()`: Updates keyframe time, value, or easing.
+-   `removeKeyframe()`: Deletes a keyframe by ID.
+-   All actions support undo/redo through the history system.
 
 ## 5. Styling & Assets
 -   **Tailwind CSS**: Used for 99% of styling.

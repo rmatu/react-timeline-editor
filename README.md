@@ -7,6 +7,11 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Multi-track Timeline** - Support for video, audio, text, and sticker tracks
 - **Clip Manipulation** - Drag to reposition, trim handles to adjust duration, drag timeline end handle to cut/extend timeline
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
+- **Keyframe Animation** - Full animation system with interpolation, easing functions, and timeline visualization
+  - Animate opacity, scale, rotation, position, volume, color, font size, and more
+  - Visual keyframe markers on timeline with drag-to-reposition support
+  - Multiple easing functions (linear, ease-in, ease-out, ease-in-out, custom cubic-bezier)
+  - Real-time preview and WYSIWYG export with animated properties
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
 - **Collision Detection** - Clips on the same track cannot overlap; auto-creates new track with visual feedback
@@ -121,6 +126,7 @@ interface VideoClip {
   playbackRate: number;     // Playback speed multiplier
   locked: boolean;
   muted: boolean;
+  keyframes?: Keyframe[];   // Optional animation keyframes
 }
 ```
 
@@ -140,6 +146,7 @@ interface AudioClip {
   fadeOut: number;
   locked: boolean;
   muted: boolean;
+  keyframes?: Keyframe[];   // Optional animation keyframes
 }
 ```
 
@@ -162,6 +169,7 @@ interface TextClip {
   animation: 'none' | 'fade' | 'slide' | 'typewriter';
   locked: boolean;
   muted: boolean;
+  keyframes?: Keyframe[];   // Optional animation keyframes
 }
 ```
 
@@ -181,7 +189,34 @@ interface StickerClip {
   position: { x: number; y: number };
   locked: boolean;
   muted: boolean;
+  keyframes?: Keyframe[];   // Optional animation keyframes
 }
+```
+
+#### Keyframe
+```typescript
+interface Keyframe {
+  id: string;                // UUID
+  property: string;          // Property name (e.g., "opacity", "scale", "position")
+  time: number;              // Time relative to clip start (seconds)
+  value: number | string | { x: number; y: number };  // Property value
+  easing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';
+  bezier?: {                 // Cubic bezier parameters (if easing === 'cubic-bezier')
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  };
+}
+
+// Animatable properties by clip type
+const ANIMATABLE_PROPERTIES = {
+  common: ['opacity', 'scale', 'rotation'],  // All clip types
+  video: ['volume', 'position'],
+  audio: ['volume', 'pan'],
+  text: ['position', 'fontSize', 'color'],
+  sticker: ['position']
+};
 ```
 
 ## API Reference
@@ -236,6 +271,44 @@ Text clips are automatically rendered at their configured positions with styles 
 - Color and background color
 - Text alignment and positioning (x, y as percentage)
 - Drop shadow for readability
+
+#### `<KeyframeEditor />`
+
+Property editor component for managing keyframes.
+
+```tsx
+<KeyframeEditor
+  clip={Clip}           // Clip to edit
+  property={string}     // Property name (e.g., "opacity")
+  label?: string        // Optional display label
+/>
+```
+
+Features:
+- Add keyframes at current playhead position
+- Edit keyframe time and easing functions
+- Live value preview with slider/input controls
+- Visual indicator when keyframe exists at playhead
+- List view of all keyframes for the property
+
+#### `<KeyframeMarkers />`
+
+Timeline visualization of keyframes as draggable markers.
+
+```tsx
+<KeyframeMarkers
+  clip={Clip}
+  zoomLevel={number}
+  selectedKeyframeId?: string
+  onKeyframeClick?: (keyframeId: string, e: React.MouseEvent) => void
+/>
+```
+
+Features:
+- Diamond-shaped markers at keyframe positions
+- Drag to reposition keyframes in time
+- Multi-property indicator (blue dot when multiple properties at same time)
+- Visual feedback for selection and dragging states
 
 #### `<ResizablePanel />`
 
@@ -295,6 +368,11 @@ const {
   clearTimeline,
   undo,
   redo,
+
+  // Keyframe actions
+  addKeyframeAtCurrentTime,  // Add keyframe at playhead
+  updateKeyframe,            // Update keyframe properties
+  removeKeyframe,            // Delete keyframe by ID
 } = useTimelineStore();
 ```
 
@@ -373,6 +451,45 @@ import {
 } from 'react-video-timeline';
 ```
 
+#### Keyframe Utilities
+
+```tsx
+import {
+  // Core interpolation functions
+  getPropertyAtTime,           // Get interpolated property value at time
+  getAnimatedPropertiesAtTime, // Get all animated properties for a clip
+
+  // Keyframe queries
+  getKeyframesForProperty,     // Get all keyframes for a property
+  hasKeyframesForProperty,     // Check if property has keyframes
+  getKeyframedProperties,      // Get all properties with keyframes
+  findKeyframeAtTime,          // Find keyframe at specific time
+  getKeyframesByTime,          // Group keyframes by time
+
+  // Property helpers
+  getDefaultForProperty,       // Get default value for a property
+  getAnimatableProperties,     // Get animatable properties for clip type
+
+  // Interpolation helpers
+  interpolateNumber,           // Interpolate numeric values
+  interpolateColor,            // Interpolate hex color values
+  interpolatePosition,         // Interpolate position objects
+  getEasedProgress,            // Apply easing to progress value
+} from 'react-video-timeline';
+
+// Example: Get animated opacity at 2.5s for a clip
+const opacity = getPropertyAtTime(
+  clip.keyframes || [],
+  'opacity',
+  2.5,
+  1.0  // default value
+);
+
+// Example: Get all animated properties at current time
+const animated = getAnimatedPropertiesAtTime(clip, currentTime);
+console.log(animated.opacity, animated.scale, animated.rotation);
+```
+
 ### Schema Validators
 
 ```tsx
@@ -380,6 +497,7 @@ import {
   ClipSchema,
   TrackSchema,
   TimelineSchema,
+  KeyframeSchema,
   validateClip,
   validateTrack,
   createTrack,
@@ -398,6 +516,16 @@ const result = ClipSchema.safeParse(clipData);
 if (result.success) {
   const clip = result.data;
 }
+
+// Validate keyframe data
+const keyframe = {
+  id: crypto.randomUUID(),
+  property: 'opacity',
+  time: 1.5,
+  value: 0.5,
+  easing: 'ease-in-out'
+};
+const kfResult = KeyframeSchema.safeParse(keyframe);
 ```
 
 ## Keyboard Shortcuts

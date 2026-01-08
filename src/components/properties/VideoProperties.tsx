@@ -1,5 +1,6 @@
 import type { VideoClip } from "@/schemas";
 import { useTimelineStore } from "@/stores/timelineStore";
+import { KeyframeEditor } from "./KeyframeEditor";
 
 interface VideoPropertiesProps {
   clip: VideoClip;
@@ -47,6 +48,17 @@ export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
           <option value="1.5">1.5x</option>
           <option value="2">2x</option>
         </select>
+      </div>
+
+      {/* Keyframe Animation Section */}
+      <div className="border-t border-zinc-800 pt-4 mt-4">
+        <h3 className="text-xs font-semibold text-zinc-300 mb-3">Keyframe Animation</h3>
+        <div className="space-y-4">
+          <KeyframeEditor clip={clip} property="opacity" />
+          <KeyframeEditor clip={clip} property="scale" />
+          <KeyframeEditor clip={clip} property="rotation" />
+          <KeyframeEditor clip={clip} property="volume" />
+        </div>
       </div>
     </div>
   );

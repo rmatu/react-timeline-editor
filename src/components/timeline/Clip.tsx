@@ -3,6 +3,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { TrimHandle } from "./TrimHandle";
 import { GhostOutline } from "./GhostOutline";
 import { ClipContent } from "./ClipContent";
+import { KeyframeMarkers } from "./KeyframeMarkers";
 import { useClipDrag } from "@/hooks/useClipDrag";
 import { useClipTrim } from "@/hooks/useClipTrim";
 import { cn } from "@/lib/utils";
@@ -191,6 +192,19 @@ export const Clip = memo(function Clip({
           <div className="absolute right-1 top-1 rounded bg-red-500/80 px-1 text-[10px] text-white">
             M
           </div>
+        )}
+
+        {/* Keyframe markers - show when clip has keyframes */}
+        {clip.keyframes && clip.keyframes.length > 0 && (
+          <KeyframeMarkers
+            clip={clip}
+            zoomLevel={zoomLevel}
+            onKeyframeClick={(_kfId, e) => {
+              e.stopPropagation();
+              // Select the clip when clicking a keyframe
+              onSelect(clip.id, e.metaKey || e.ctrlKey || e.shiftKey);
+            }}
+          />
         )}
       </div>
     </>

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { TextOverlay } from "./TextOverlay";
 import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
+import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 
 // Separate component for each video layer to manage its own ref and state
 const VideoLayer = memo(({ 
@@ -79,13 +80,22 @@ const VideoLayer = memo(({
   // Check if clip is in range (should be visible even if not active)
   const isInRange = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
 
+  // Get animated properties for keyframe animations
+  const animated = useMemo(
+    () => getAnimatedPropertiesAtTime(clip, currentTime),
+    [clip, currentTime]
+  );
+
   return (
     <video
       ref={videoRef}
       src={clip.sourceUrl}
       className="absolute inset-0 h-full w-full object-contain pointer-events-none transition-opacity duration-200"
       style={{
-        opacity: isInRange ? 1 : 0,
+        opacity: isInRange ? animated.opacity : 0,
+        transform: isInRange
+          ? `scale(${animated.scale}) rotate(${animated.rotation}deg)`
+          : undefined,
         zIndex: isInRange ? zIndex : 0,
       }}
       preload="auto"
@@ -98,28 +108,34 @@ const VideoLayer = memo(({
 
 VideoLayer.displayName = "VideoLayer";
 
-const AudioLayer = memo(({ 
-  clip, 
-  isActive, 
-  isPlaying, 
-  currentTime, 
+const AudioLayer = memo(({
+  clip,
+  isActive,
+  isPlaying,
+  currentTime,
   trackMuted,
-}: { 
-  clip: AudioClip | VideoClip, 
-  isActive: boolean, 
-  isPlaying: boolean, 
+}: {
+  clip: AudioClip | VideoClip,
+  isActive: boolean,
+  isPlaying: boolean,
   currentTime: number,
   trackMuted: boolean
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Get animated volume
+  const animated = useMemo(
+    () => getAnimatedPropertiesAtTime(clip, currentTime),
+    [clip, currentTime]
+  );
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // 1. Mute/Volume
+    // 1. Mute/Volume - use animated volume if available
     audio.muted = !isActive || clip.muted || trackMuted;
-    audio.volume = clip.volume;
+    audio.volume = animated.volume ?? clip.volume;
     
     // Handle playbackRate for video clips
     const playbackRate = clip.type === 'video' ? clip.playbackRate : 1;
@@ -144,7 +160,7 @@ const AudioLayer = memo(({
          audio.currentTime = targetAudioTime;
       }
     }
-  }, [isActive, isPlaying, clip, currentTime, trackMuted]);
+  }, [isActive, isPlaying, clip, currentTime, trackMuted, animated]);
 
   return (
     <audio
