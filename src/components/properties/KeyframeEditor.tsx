@@ -119,13 +119,23 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
           <span>Editing keyframe at {clipTime.toFixed(2)}s</span>
         </div>
       )}
-      <ValueInput
-        value={currentValue}
-        meta={meta}
-        onChange={handleValueChange}
-        onCommit={handleValueCommit}
-        disabled={!isWithinClip}
-      />
+      
+      {/* Show slider when on keyframe OR when no keyframes exist */}
+      {(hasKeyframeAtCurrentTime || keyframes.length === 0) ? (
+        <ValueInput
+          value={currentValue}
+          meta={meta}
+          onChange={handleValueChange}
+          onCommit={handleValueCommit}
+          disabled={!isWithinClip}
+        />
+      ) : (
+        /* When keyframes exist but not on one, show message */
+        <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-500 bg-zinc-900 rounded px-3 py-3 border border-dashed border-zinc-700">
+          <Diamond size={10} className="text-zinc-600" />
+          <span>Click a keyframe below to edit</span>
+        </div>
+      )}
 
       {/* Keyframe list */}
       {keyframes.length > 0 && (
@@ -135,59 +145,75 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
             <span>{keyframes.length} Keyframe{keyframes.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="max-h-32 overflow-y-auto space-y-1">
-            {keyframes.map((kf) => (
-              <div
-                key={kf.id}
-                className="flex items-center gap-2 rounded bg-zinc-900 px-2 py-1.5 text-xs"
-              >
-                {/* Time */}
-                <input
-                  type="number"
-                  value={Math.round(kf.time * 100) / 100}
-                  step={0.1}
-                  min={0}
-                  max={clip.duration}
-                  className="w-14 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300"
-                  onChange={(e) => {
-                    const newTime = Math.max(
-                      0,
-                      Math.min(clip.duration, parseFloat(e.target.value) || 0)
-                    );
-                    saveToHistory();
-                    updateKeyframe(clip.id, kf.id, { time: newTime });
-                  }}
-                />
-                <span className="text-zinc-500 text-[10px]">s</span>
-
-                {/* Easing */}
-                <select
-                  value={kf.easing}
-                  onChange={(e) => {
-                    saveToHistory();
-                    updateKeyframe(clip.id, kf.id, {
-                      easing: e.target.value as EasingType,
-                    });
-                  }}
-                  className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-300"
-                >
-                  <option value="linear">Linear</option>
-                  <option value="ease-in">Ease In</option>
-                  <option value="ease-out">Ease Out</option>
-                  <option value="ease-in-out">Ease In/Out</option>
-                </select>
-
-                {/* Delete */}
-                <button
+            {keyframes.map((kf) => {
+              const isAtThisKeyframe = Math.abs(kf.time - clipTime) < 0.05;
+              return (
+                <div
+                  key={kf.id}
                   onClick={() => {
-                    saveToHistory();
-                    removeKeyframe(clip.id, kf.id);
+                    // Seek playhead to this keyframe's time (absolute time = clip start + keyframe time)
+                    const setCurrentTime = useTimelineStore.getState().setCurrentTime;
+                    setCurrentTime(clip.startTime + kf.time);
                   }}
-                  className="text-zinc-500 hover:text-red-400 transition-colors"
+                  className={cn(
+                    "flex items-center gap-2 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors",
+                    isAtThisKeyframe
+                      ? "bg-yellow-400/20 border border-yellow-400/50"
+                      : "bg-zinc-900 hover:bg-zinc-800 border border-transparent"
+                  )}
                 >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
+                  {/* Time */}
+                  <input
+                    type="number"
+                    value={Math.round(kf.time * 100) / 100}
+                    step={0.1}
+                    min={0}
+                    max={clip.duration}
+                    className="w-14 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300"
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      const newTime = Math.max(
+                        0,
+                        Math.min(clip.duration, parseFloat(e.target.value) || 0)
+                      );
+                      saveToHistory();
+                      updateKeyframe(clip.id, kf.id, { time: newTime });
+                    }}
+                  />
+                  <span className="text-zinc-500 text-[10px]">s</span>
+
+                  {/* Easing */}
+                  <select
+                    value={kf.easing}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      saveToHistory();
+                      updateKeyframe(clip.id, kf.id, {
+                        easing: e.target.value as EasingType,
+                      });
+                    }}
+                    className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-300"
+                  >
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-out">Ease Out</option>
+                    <option value="ease-in-out">Ease In/Out</option>
+                  </select>
+
+                  {/* Delete */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      saveToHistory();
+                      removeKeyframe(clip.id, kf.id);
+                    }}
+                    className="text-zinc-500 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
