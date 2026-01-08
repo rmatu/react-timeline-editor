@@ -137,7 +137,7 @@ export const KeyframeMarkers = memo(function KeyframeMarkers({
     <div className="absolute inset-x-0 bottom-0 h-6 flex items-end pointer-events-none overflow-visible">
       {keyframeGroups.map(([time, keyframes]) => {
         const isSelected = keyframes.some((kf) => kf.id === selectedKeyframeId);
-        const isAtPlayhead = Math.abs(time - clipTime) < 0.05;
+        const isAtPlayhead = Math.abs(time - clipTime) < 0.017;
 
         return (
           <DraggableKeyframe

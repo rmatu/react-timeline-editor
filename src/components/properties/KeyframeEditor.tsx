@@ -50,7 +50,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
   }, [clip, property, clipTime]);
 
   const hasKeyframeAtCurrentTime = useMemo(() => {
-    return keyframes.some((kf) => Math.abs(kf.time - clipTime) < 0.05);
+    return keyframes.some((kf) => Math.abs(kf.time - clipTime) < 0.017);
   }, [keyframes, clipTime]);
 
   const handleAddKeyframe = () => {
@@ -62,7 +62,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
   const handleValueChange = (value: KeyframeValue) => {
     // Check if there's a keyframe at current time
     const existingKf = keyframes.find(
-      (kf) => Math.abs(kf.time - clipTime) < 0.05
+      (kf) => Math.abs(kf.time - clipTime) < 0.017
     );
 
     if (existingKf) {
@@ -146,7 +146,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
           </div>
           <div className="max-h-32 overflow-y-auto space-y-1">
             {keyframes.map((kf) => {
-              const isAtThisKeyframe = Math.abs(kf.time - clipTime) < 0.05;
+              const isAtThisKeyframe = Math.abs(kf.time - clipTime) < 0.017;
               return (
                 <div
                   key={kf.id}
