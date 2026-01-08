@@ -181,7 +181,7 @@ export const Clip = memo(function Clip({
 
         {/* Duration badge - always show in bottom right corner */}
         {width > 50 && (
-          <div className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono text-white/80">
+          <div className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 py-px text-[9px] font-mono text-white/70">
             {clip.duration >= 60 
               ? `${Math.floor(clip.duration / 60)}:${(clip.duration % 60).toFixed(1).padStart(4, '0')}`
               : `${clip.duration.toFixed(1)}s`}
