@@ -24,6 +24,8 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
   );
   const updateKeyframe = useTimelineStore((state) => state.updateKeyframe);
   const removeKeyframe = useTimelineStore((state) => state.removeKeyframe);
+  const updateClip = useTimelineStore((state) => state.updateClip);
+  const saveToHistory = useTimelineStore((state) => state.saveToHistory);
 
   const meta: PropertyMeta = PROPERTY_META[property] || {
     label: property,
@@ -53,19 +55,24 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
 
   const handleAddKeyframe = () => {
     if (!isWithinClip) return;
+    saveToHistory();
     addKeyframeAtCurrentTime(clip.id, property, currentValue);
   };
 
   const handleValueChange = (value: KeyframeValue) => {
-    // If there's a keyframe at current time, update it
+    // Check if there's a keyframe at current time
     const existingKf = keyframes.find(
       (kf) => Math.abs(kf.time - clipTime) < 0.05
     );
+
+    saveToHistory();
+
     if (existingKf) {
+      // Update the keyframe value
       updateKeyframe(clip.id, existingKf.id, { value });
     } else if (isWithinClip) {
-      // Add new keyframe at current time with the new value
-      addKeyframeAtCurrentTime(clip.id, property, value);
+      // No keyframe at current time - update base clip property
+      updateClip(clip.id, { [property]: value } as Partial<Clip>);
     }
   };
 
@@ -135,6 +142,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                       0,
                       Math.min(clip.duration, parseFloat(e.target.value) || 0)
                     );
+                    saveToHistory();
                     updateKeyframe(clip.id, kf.id, { time: newTime });
                   }}
                 />
@@ -143,11 +151,12 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                 {/* Easing */}
                 <select
                   value={kf.easing}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    saveToHistory();
                     updateKeyframe(clip.id, kf.id, {
                       easing: e.target.value as EasingType,
-                    })
-                  }
+                    });
+                  }}
                   className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-300"
                 >
                   <option value="linear">Linear</option>
@@ -158,7 +167,10 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
 
                 {/* Delete */}
                 <button
-                  onClick={() => removeKeyframe(clip.id, kf.id)}
+                  onClick={() => {
+                    saveToHistory();
+                    removeKeyframe(clip.id, kf.id);
+                  }}
                   className="text-zinc-500 hover:text-red-400 transition-colors"
                 >
                   <Trash2 size={12} />
