@@ -32,7 +32,7 @@ export const Clip = memo(function Clip({
   disabled = false,
 }: ClipProps) {
   void _scrollX; // Used for potential future viewport optimizations
-  const { isTrimming: isAnyTrimming } = useTimelineStore();
+  const { isTrimming: isAnyTrimming, currentTime } = useTimelineStore();
 
   const [isHovered, setIsHovered] = useState(false);
 
@@ -170,20 +170,21 @@ export const Clip = memo(function Clip({
           </>
         )}
 
-        {/* Clip name/label */}
         {/* Clip name/label - hide for text as it renders its own content */}
         {width > 60 && clip.type !== "text" && (
-          <div className="absolute inset-x-2 top-1 truncate text-xs font-medium text-white/80">
+          <div className="absolute inset-x-2 top-1 truncate text-xs font-medium text-white/80 drop-shadow-sm">
             {clip.type === "video" || clip.type === "audio"
               ? (clip as any).name || getFileName((clip as any).sourceUrl)
               : clip.type}
           </div>
         )}
 
-        {/* Duration badge (for selected clips under 10s) */}
-        {isSelected && clip.duration < 10 && width > 40 && (
-          <div className="absolute bottom-1 right-1 rounded bg-black/50 px-1 text-[10px] text-white/70">
-            {clip.duration.toFixed(1)}s
+        {/* Duration badge - always show in bottom right corner */}
+        {width > 50 && (
+          <div className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 py-px text-[9px] font-mono text-white/70">
+            {clip.duration >= 60 
+              ? `${Math.floor(clip.duration / 60)}:${(clip.duration % 60).toFixed(1).padStart(4, '0')}`
+              : `${clip.duration.toFixed(1)}s`}
           </div>
         )}
 
@@ -199,6 +200,7 @@ export const Clip = memo(function Clip({
           <KeyframeMarkers
             clip={clip}
             zoomLevel={zoomLevel}
+            currentTime={currentTime}
             onKeyframeClick={(_kfId, e) => {
               e.stopPropagation();
               // Select the clip when clicking a keyframe
@@ -211,13 +213,16 @@ export const Clip = memo(function Clip({
   );
 });
 
-// Helper to extract filename from URL
+// Helper to extract filename from URL (works with both absolute and relative URLs)
 function getFileName(url: string): string {
+  if (!url) return "";
+  // Simple approach that works for both absolute and relative URLs
+  const filename = url.split("/").pop() || "";
+  // Remove any query params
+  const cleanName = filename.split("?")[0];
   try {
-    const pathname = new URL(url).pathname;
-    const filename = pathname.split("/").pop() || "";
-    return decodeURIComponent(filename);
+    return decodeURIComponent(cleanName);
   } catch {
-    return url;
+    return cleanName;
   }
 }

@@ -9,6 +9,7 @@ import {
   getPropertyAtTime,
   getDefaultForProperty,
 } from "@/utils/keyframes";
+import { formatTimecode, parseTimecode } from "@/utils/time";
 import { cn } from "@/lib/utils";
 
 interface KeyframeEditorProps {
@@ -50,7 +51,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
   }, [clip, property, clipTime]);
 
   const hasKeyframeAtCurrentTime = useMemo(() => {
-    return keyframes.some((kf) => Math.abs(kf.time - clipTime) < 0.05);
+    return keyframes.some((kf) => Math.abs(kf.time - clipTime) < 0.017);
   }, [keyframes, clipTime]);
 
   const handleAddKeyframe = () => {
@@ -62,7 +63,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
   const handleValueChange = (value: KeyframeValue) => {
     // Check if there's a keyframe at current time
     const existingKf = keyframes.find(
-      (kf) => Math.abs(kf.time - clipTime) < 0.05
+      (kf) => Math.abs(kf.time - clipTime) < 0.017
     );
 
     if (existingKf) {
@@ -112,14 +113,30 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
         </button>
       </div>
 
-      {/* Current value input */}
-      <ValueInput
-        value={currentValue}
-        meta={meta}
-        onChange={handleValueChange}
-        onCommit={handleValueCommit}
-        disabled={!isWithinClip}
-      />
+      {/* Current value input with indicator */}
+      {hasKeyframeAtCurrentTime && (
+        <div className="flex items-center gap-1.5 text-[10px] text-yellow-400 bg-yellow-400/10 rounded px-2 py-1 mb-1">
+          <Diamond size={8} className="fill-current" />
+          <span>Editing keyframe at {formatTimecode(clip.startTime + clipTime)}</span>
+        </div>
+      )}
+      
+      {/* Show slider when on keyframe OR when no keyframes exist */}
+      {(hasKeyframeAtCurrentTime || keyframes.length === 0) ? (
+        <ValueInput
+          value={currentValue}
+          meta={meta}
+          onChange={handleValueChange}
+          onCommit={handleValueCommit}
+          disabled={!isWithinClip}
+        />
+      ) : (
+        /* When keyframes exist but not on one, show message */
+        <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-500 bg-zinc-900 rounded px-3 py-3 border border-dashed border-zinc-700">
+          <Diamond size={10} className="text-zinc-600" />
+          <span>Click a keyframe below to edit</span>
+        </div>
+      )}
 
       {/* Keyframe list */}
       {keyframes.length > 0 && (
@@ -129,59 +146,79 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
             <span>{keyframes.length} Keyframe{keyframes.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="max-h-32 overflow-y-auto space-y-1">
-            {keyframes.map((kf) => (
-              <div
-                key={kf.id}
-                className="flex items-center gap-2 rounded bg-zinc-900 px-2 py-1.5 text-xs"
-              >
-                {/* Time */}
-                <input
-                  type="number"
-                  value={Math.round(kf.time * 100) / 100}
-                  step={0.1}
-                  min={0}
-                  max={clip.duration}
-                  className="w-14 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300"
-                  onChange={(e) => {
-                    const newTime = Math.max(
-                      0,
-                      Math.min(clip.duration, parseFloat(e.target.value) || 0)
-                    );
-                    saveToHistory();
-                    updateKeyframe(clip.id, kf.id, { time: newTime });
-                  }}
-                />
-                <span className="text-zinc-500 text-[10px]">s</span>
-
-                {/* Easing */}
-                <select
-                  value={kf.easing}
-                  onChange={(e) => {
-                    saveToHistory();
-                    updateKeyframe(clip.id, kf.id, {
-                      easing: e.target.value as EasingType,
-                    });
-                  }}
-                  className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-300"
-                >
-                  <option value="linear">Linear</option>
-                  <option value="ease-in">Ease In</option>
-                  <option value="ease-out">Ease Out</option>
-                  <option value="ease-in-out">Ease In/Out</option>
-                </select>
-
-                {/* Delete */}
-                <button
+            {keyframes.map((kf) => {
+              const isAtThisKeyframe = Math.abs(kf.time - clipTime) < 0.017;
+              return (
+                <div
+                  key={kf.id}
                   onClick={() => {
-                    saveToHistory();
-                    removeKeyframe(clip.id, kf.id);
+                    // Seek playhead to this keyframe's time (absolute time = clip start + keyframe time)
+                    const setCurrentTime = useTimelineStore.getState().setCurrentTime;
+                    setCurrentTime(clip.startTime + kf.time);
                   }}
-                  className="text-zinc-500 hover:text-red-400 transition-colors"
+                  className={cn(
+                    "flex items-center gap-2 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors",
+                    isAtThisKeyframe
+                      ? "bg-yellow-400/20 border border-yellow-400/50"
+                      : "bg-zinc-900 hover:bg-zinc-800 border border-transparent"
+                  )}
                 >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
+                  {/* Timecode display */}
+                  <input
+                    type="text"
+                    defaultValue={formatTimecode(clip.startTime + kf.time)}
+                    key={`${kf.id}-${kf.time}`}
+                    className="w-20 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300 font-mono"
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => {
+                      const absoluteTime = parseTimecode(e.target.value);
+                      if (isNaN(absoluteTime)) return;
+                      const newClipTime = absoluteTime - clip.startTime;
+                      const clampedTime = Math.max(0, Math.min(clip.duration, newClipTime));
+                      if (Math.abs(clampedTime - kf.time) > 0.001) {
+                        saveToHistory();
+                        updateKeyframe(clip.id, kf.id, { time: clampedTime });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                  />
+
+                  {/* Easing */}
+                  <select
+                    value={kf.easing}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      saveToHistory();
+                      updateKeyframe(clip.id, kf.id, {
+                        easing: e.target.value as EasingType,
+                      });
+                    }}
+                    className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-1 text-xs text-zinc-300"
+                  >
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-out">Ease Out</option>
+                    <option value="ease-in-out">Ease In/Out</option>
+                  </select>
+
+                  {/* Delete */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      saveToHistory();
+                      removeKeyframe(clip.id, kf.id);
+                    }}
+                    className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
