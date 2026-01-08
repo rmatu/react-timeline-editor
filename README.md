@@ -14,6 +14,9 @@ A high-performance, touch-friendly React component library for video timeline ed
   - Multiple easing functions (linear, ease-in, ease-out, ease-in-out, custom cubic-bezier)
   - Real-time preview and WYSIWYG export with animated properties
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
+  - Drag to reposition, corner handles to scale, rotation handle above element
+  - Edge handles to adjust text width and enable word wrapping
+  - Movement thresholds prevent accidental changes from micro-movements
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
 - **Collision Detection** - Clips on the same track cannot overlap; auto-creates new track with visual feedback
 - **Gesture Support** - Pinch-to-zoom, scroll, and drag (touch + mouse)
@@ -269,10 +272,10 @@ Playback and zoom controls bar.
 
 #### `<TextOverlay />`
 
-Renders active text clips on top of video preview.
+Renders active text clips on top of video preview with interactive editing capabilities.
 
 ```tsx
-<TextOverlay currentTime={number} />
+<TextOverlay currentTime={number} containerRef={RefObject<HTMLDivElement>} />
 ```
 
 Text clips are automatically rendered at their configured positions with styles including:
@@ -280,6 +283,13 @@ Text clips are automatically rendered at their configured positions with styles 
 - Color and background color
 - Text alignment and positioning (x, y as percentage)
 - Drop shadow for readability
+
+Interactive features (via `DraggableTextItem`):
+- **Drag to move**: Click and drag text to reposition
+- **Corner handles**: Scale the text element
+- **Rotation handle**: Rotate via handle above the element
+- **Edge handles**: Adjust text width (enables word wrapping)
+- **Movement thresholds**: Prevents accidental changes from micro-movements (>0.5% for position, >3px for width)
 
 #### `<KeyframeEditor />`
 
@@ -573,6 +583,10 @@ const kfResult = KeyframeSchema.safeParse(keyframe);
 | **Drag track bottom** | Resize track height |
 | **Drag sidebar edge** | Resize track header width |
 | **Double-click track** | Rename track |
+| **Drag text overlay** | Reposition text on preview |
+| **Drag text corner handle** | Scale text element |
+| **Drag text rotation handle** | Rotate text element |
+| **Drag text edge handle** | Adjust text width |
 
 ## Constants
 

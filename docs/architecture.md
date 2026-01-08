@@ -86,6 +86,11 @@ Responsible for WYSIWYG playback and rendering.
     -   **`AudioLayer`**: Renders individual `<audio>` elements for independent audio clips.
         -   Decoupled from video playback to ensuring background music plays correctly.
     -   **`TextOverlay`**: Renders text elements over the video.
+        -   **`DraggableTextItem`**: Interactive text element with drag, scale, rotate, and width resize capabilities.
+            -   **Position Dragging**: Uses animated position values to prevent jumping when keyframes exist.
+            -   **Width Measurement**: Measures inner text content via `scrollWidth` to avoid rotation transform issues with `getBoundingClientRect()`.
+            -   **Movement Thresholds**: Requires >0.5% movement for position, >3px for width to prevent accidental changes from micro-movements.
+            -   **Deferred Styling**: Width drag styling only applies after threshold is exceeded to prevent premature text wrapping.
 
 -   **`PreviewControls`**:
     -   Play/Pause, Step Frame, Timecode display.
