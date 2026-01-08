@@ -84,6 +84,7 @@ export const AudioProperties = ({ clip }: AudioPropertiesProps) => {
       <div className="border-t border-zinc-800 pt-4 mt-4">
         <h3 className="text-xs font-semibold text-zinc-300 mb-3">Keyframe Animation</h3>
         <div className="space-y-4">
+          <KeyframeEditor clip={clip} property="volume" />
           <KeyframeEditor clip={clip} property="pan" label="Pan (L/R)" />
         </div>
       </div>

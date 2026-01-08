@@ -64,23 +64,9 @@ const DraggableKeyframe = memo(function DraggableKeyframe({
     [isDragging, keyframes, onKeyframeClick, clip.startTime, time]
   );
 
-  // Get bind handlers and wrap them to also stop propagation
-  // Use useMemo to prevent bind() from creating a new object on every render
-  const bindHandlers = useMemo(() => bind(), [bind]);
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      e.stopPropagation();
-      // Call the gesture handler
-      bindHandlers.onPointerDown?.(e);
-    },
-    [bindHandlers]
-  );
-
   return (
     <div
-      {...bindHandlers}
-      onPointerDown={handlePointerDown}
+      {...bind()}
       className={cn(
         "absolute bottom-1 pointer-events-auto cursor-grab touch-none select-none",
         isDragging && "cursor-grabbing z-50"

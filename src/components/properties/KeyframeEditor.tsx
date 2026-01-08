@@ -166,15 +166,24 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                   {/* Timecode display */}
                   <input
                     type="text"
-                    value={formatTimecode(clip.startTime + kf.time)}
+                    defaultValue={formatTimecode(clip.startTime + kf.time)}
+                    key={`${kf.id}-${kf.time}`}
                     className="w-20 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300 font-mono"
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => {
+                    onBlur={(e) => {
                       const absoluteTime = parseTimecode(e.target.value);
+                      if (isNaN(absoluteTime)) return;
                       const newClipTime = absoluteTime - clip.startTime;
                       const clampedTime = Math.max(0, Math.min(clip.duration, newClipTime));
-                      saveToHistory();
-                      updateKeyframe(clip.id, kf.id, { time: clampedTime });
+                      if (Math.abs(clampedTime - kf.time) > 0.001) {
+                        saveToHistory();
+                        updateKeyframe(clip.id, kf.id, { time: clampedTime });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                      }
                     }}
                   />
 

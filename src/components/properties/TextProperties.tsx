@@ -161,6 +161,9 @@ export const TextProperties = ({ clip }: TextPropertiesProps) => {
           <KeyframeEditor clip={clip} property="opacity" />
           <KeyframeEditor clip={clip} property="scale" />
           <KeyframeEditor clip={clip} property="rotation" />
+          <KeyframeEditor clip={clip} property="position" />
+          <KeyframeEditor clip={clip} property="fontSize" label="Font Size" />
+          <KeyframeEditor clip={clip} property="color" />
         </div>
       </div>
     </div>
