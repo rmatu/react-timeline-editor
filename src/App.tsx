@@ -172,6 +172,7 @@ function App() {
     loadTimeline,
     exportTimeline,
     setDuration,
+    resolution,
   } = useTimelineStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -343,7 +344,8 @@ function App() {
         onExport={handleExportMp4}
         isExporting={isExporting}
         defaultSettings={{
-             // Pre-fill with store values if desired, for now defaults in component are fine
+          width: resolution.width,
+          height: resolution.height,
         }}
       />
     </div>

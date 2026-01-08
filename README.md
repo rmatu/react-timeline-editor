@@ -16,6 +16,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
   - Drag to reposition, corner handles to scale, rotation handle above element
   - Edge handles to adjust text width and enable word wrapping
+  - **Smart Interaction**: Handles are optimized for touch and remain accessible even near edges
   - Movement thresholds prevent accidental changes from micro-movements
 - **Smart Snapping** - Clips snap to other clips, playhead, and timeline boundaries
 - **Collision Detection** - Clips on the same track cannot overlap; auto-creates new track with visual feedback

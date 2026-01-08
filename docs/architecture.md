@@ -78,14 +78,21 @@ Extensible panel system for secondary tools.
 ### Preview Engine (`src/components/preview`)
 Responsible for WYSIWYG playback and rendering.
 
--   **`VideoPreview`**: Main container.
-    -   **Responsive Sizing**: Calculates dimensions to strictly respect the selected aspect ratio (e.g., 9:16) while fitting within the parent container.
+-   **`PlayerWrapper`**: Container component that manages the preview Layout.
+    -   **Aspect Ratio Management**: Calculates optimal dimensions to strictly respect the selected resolution (e.g., 9:16) while fitting within the parent container.
+    -   **Context Provider**: Exposes measurements and refs to children via render prop pattern.
+    -   **Interaction Layer**: Handles background clicks for deselecting clips.
+
+-   **`VideoPreview`**: Main orchestrator.
+    -   Uses `PlayerWrapper` to establish layout context.
+    -   **Layer Management**: Renders video and audio layers based on active clips.
     -   **`VideoLayer`**: Renders individual `<video>` elements.
         -   **Synchronization**: Manually syncs `currentTime` if drift > 0.2s.
         -   **Ref Management**: Each layer manages its own React Ref to the DOM element.
     -   **`AudioLayer`**: Renders individual `<audio>` elements for independent audio clips.
         -   Decoupled from video playback to ensuring background music plays correctly.
     -   **`TextOverlay`**: Renders text elements over the video.
+        -   **Positioning**: Lives outside the overflow-hidden video container but inside `PlayerWrapper` to allow controls to extend beyond video frame.
         -   **`DraggableTextItem`**: Interactive text element with drag, scale, rotate, and width resize capabilities.
             -   **Position Dragging**: Uses animated position values to prevent jumping when keyframes exist.
             -   **Width Measurement**: Measures inner text content via `scrollWidth` to avoid rotation transform issues with `getBoundingClientRect()`.

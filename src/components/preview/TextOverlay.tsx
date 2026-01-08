@@ -25,7 +25,7 @@ export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
   if (activeTextClips.length === 0) return null;
 
   return (
-    <div className="absolute inset-0 overflow-hidden z-20 pointer-events-none">
+    <div className="absolute inset-0 z-20 pointer-events-none">
       {activeTextClips.map((clip) => (
         <DraggableTextItem
           key={clip.id}
