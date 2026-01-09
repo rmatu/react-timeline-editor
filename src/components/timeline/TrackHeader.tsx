@@ -8,15 +8,26 @@ import type { Track } from "@/schemas";
 
 interface TrackHeaderProps {
   track: Track;
+  sortedTracks: Track[];
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
-export function TrackHeader({ track }: TrackHeaderProps) {
-  const { selectedTrackId, selectTrack, updateTrack, removeTrack, saveToHistory, undo } = useTimelineStore();
+export function TrackHeader({ track, sortedTracks, onDragStart, onDragEnd }: TrackHeaderProps) {
+  const { selectedTrackId, selectTrack, updateTrack, removeTrack, saveToHistory, undo, reorderTracks } = useTimelineStore();
   const isSelected = selectedTrackId === track.id;
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(track.name);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Track reorder drag state
+  const [isDraggingTrack, setIsDraggingTrack] = useState(false);
+  const dragStateRef = useRef<{
+    initialOrder: string[];
+    trackIndex: number;
+    originalIndex: number;
+  } | null>(null);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -58,10 +69,91 @@ export function TrackHeader({ track }: TrackHeaderProps) {
   const bindResize = useDrag(({ delta: [, dy], first, last }) => {
     if (first) document.body.style.cursor = "row-resize";
     if (last) document.body.style.cursor = "";
-    
+
     const newHeight = Math.max(40, track.height + dy);
     updateTrack(track.id, { height: newHeight });
   });
+
+  // Track reorder drag handler
+  const bindTrackDrag = useDrag(
+    ({ movement: [, my], first, last, event }) => {
+      event?.stopPropagation();
+
+      if (first) {
+        const originalIndex = sortedTracks.findIndex((t) => t.id === track.id);
+        dragStateRef.current = {
+          initialOrder: sortedTracks.map((t) => t.id),
+          trackIndex: originalIndex,
+          originalIndex,
+        };
+        setIsDraggingTrack(true);
+        onDragStart?.();
+        document.body.style.cursor = "grabbing";
+      }
+
+      if (dragStateRef.current && !last) {
+        const { initialOrder, originalIndex } = dragStateRef.current;
+
+        // Calculate which track position we're over
+        let accumulatedHeight = 0;
+        let newIndex = originalIndex;
+
+        // Calculate original track's starting position
+        let originalTop = 0;
+        for (let i = 0; i < originalIndex; i++) {
+          originalTop += sortedTracks[i].height;
+        }
+
+        // Calculate current drag position (center of dragged track)
+        const dragY = originalTop + my + track.height / 2;
+
+        // Find which position we should be at
+        for (let i = 0; i < sortedTracks.length; i++) {
+          const trackCenter = accumulatedHeight + sortedTracks[i].height / 2;
+          if (dragY < trackCenter) {
+            newIndex = i;
+            break;
+          }
+          accumulatedHeight += sortedTracks[i].height;
+          newIndex = i;
+        }
+
+        // Clamp to valid range
+        newIndex = Math.max(0, Math.min(sortedTracks.length - 1, newIndex));
+
+        if (newIndex !== dragStateRef.current.trackIndex) {
+          // Create reordered array
+          const newOrder = [...initialOrder];
+          const [movedId] = newOrder.splice(originalIndex, 1);
+          newOrder.splice(newIndex, 0, movedId);
+
+          // Update immediately for visual feedback
+          reorderTracks(newOrder);
+          dragStateRef.current.trackIndex = newIndex;
+        }
+      }
+
+      if (last) {
+        setIsDraggingTrack(false);
+        onDragEnd?.();
+        document.body.style.cursor = "";
+
+        if (dragStateRef.current) {
+          const { originalIndex, trackIndex } = dragStateRef.current;
+          if (trackIndex !== originalIndex) {
+            // Save to history for undo
+            // Note: reorderTracks was already called during drag
+            saveToHistory();
+          }
+        }
+        dragStateRef.current = null;
+      }
+    },
+    {
+      filterTaps: true,
+      pointer: { capture: false },
+    }
+  );
 
   const handleToggleMute = useCallback(
     (e: React.MouseEvent) => {
@@ -110,11 +202,24 @@ export function TrackHeader({ track }: TrackHeaderProps) {
     <div
       className={cn(
         "group relative flex items-center gap-2 border-b border-zinc-700 px-2 transition-colors",
-        isSelected ? "bg-zinc-700" : "bg-zinc-800 hover:bg-zinc-750"
+        isSelected ? "bg-zinc-700" : "bg-zinc-800 hover:bg-zinc-750",
+        isDraggingTrack && "bg-zinc-600 shadow-lg z-50"
       )}
       style={{ height: track.height }}
       onClick={handleClick}
     >
+      {/* Drag handle */}
+      <div
+        {...bindTrackDrag()}
+        className={cn(
+          "flex-shrink-0 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-zinc-600 transition-colors touch-none",
+          isDraggingTrack && "cursor-grabbing bg-zinc-500"
+        )}
+        title="Drag to reorder track"
+      >
+        <GripIcon className="h-4 w-4 text-zinc-500" />
+      </div>
+
       {/* Track type indicator */}
       <div
         className="h-3 w-3 rounded-full flex-shrink-0"
@@ -268,6 +373,19 @@ function TrashIcon({ className }: { className?: string }) {
       />
       <path d="M6 7H7.5V12H6V7Z" />
       <path d="M8.5 7H10V12H8.5V7Z" />
+    </svg>
+  );
+}
+
+function GripIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="5" cy="4" r="1.5" />
+      <circle cx="11" cy="4" r="1.5" />
+      <circle cx="5" cy="8" r="1.5" />
+      <circle cx="11" cy="8" r="1.5" />
+      <circle cx="5" cy="12" r="1.5" />
+      <circle cx="11" cy="12" r="1.5" />
     </svg>
   );
 }

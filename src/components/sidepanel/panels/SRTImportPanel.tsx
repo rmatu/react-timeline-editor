@@ -194,7 +194,7 @@ export function SRTImportPanel() {
           fontSize: 32,
           fontWeight: 'normal',
           color: '#ffffff',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: '#00000080',
           textAlign: 'center',
           position: { x: 50, y: 85 },
           animation: 'none',

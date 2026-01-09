@@ -44,6 +44,12 @@ A high-performance, touch-friendly React component library for video timeline ed
   - Smart history saving on completion (onMouseUp for sliders, onBlur for inputs)
 - **Type Safety** - Full TypeScript support with Zod runtime validation
 - **Performance Optimized** - Hybrid state management with Zustand + Jotai + Immer
+- **Auto-Save & Persistence** - Automatic project saving with adapter pattern for backend flexibility
+  - 2-second debounced auto-save (like Google Docs)
+  - Multi-project support (create, switch, rename, duplicate, delete)
+  - Media files persisted in IndexedDB across page reloads
+  - Adapter pattern for easy migration to cloud storage (Supabase, AWS, etc.)
+  - Manual save with Ctrl/Cmd+S
 
 ## Installation
 
@@ -560,6 +566,7 @@ const kfResult = KeyframeSchema.safeParse(keyframe);
 | `Delete` / `Backspace` | Delete selected clips |
 | `S` | Split selected clips at playhead |
 | `M` | Merge selected clips |
+| `Ctrl/Cmd + S` | Save project |
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y` | Redo |
 | `Ctrl/Cmd + A` | Select all clips |

@@ -5,3 +5,5 @@ export { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 export { useSnapping } from "./useSnapping";
 export { usePlayhead } from "./usePlayhead";
 export { useZoom } from "./useZoom";
+export { useAutoSave } from "./useAutoSave";
+export { useProjectHydration } from "./useProjectHydration";
