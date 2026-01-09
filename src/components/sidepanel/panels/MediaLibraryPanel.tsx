@@ -1,8 +1,8 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
-import { Upload, Film, Music, Trash2, Plus, GripVertical } from 'lucide-react';
+import { Upload, Film, Music, Trash2, Plus, GripVertical, Image as ImageIcon } from 'lucide-react';
 import { useTimelineStore, type MediaItem } from '@/stores/timelineStore';
 import { createTrack } from '@/schemas';
-import type { VideoClip, AudioClip } from '@/schemas';
+import type { VideoClip, AudioClip, StickerClip } from '@/schemas';
 import { mediaStorage } from '@/services/persistence';
 
 // Re-export MediaItem type for use elsewhere
@@ -27,10 +27,10 @@ export function MediaLibraryPanel() {
   const addClip = useTimelineStore((s) => s.addClip);
   const currentTime = useTimelineStore((s) => s.currentTime);
 
-  // Filter to only show video/audio items (not SRT)
+  // Filter to only show video/audio/image items (not SRT)
   const mediaItems = useMemo(() => {
     return Array.from(mediaLibrary.values()).filter(
-      (item) => item.type === 'video' || item.type === 'audio'
+      (item) => item.type === 'video' || item.type === 'audio' || item.type === 'image'
     );
   }, [mediaLibrary]);
 
@@ -98,10 +98,64 @@ export function MediaLibraryPanel() {
     []
   );
 
+  // Helper to check if file is a supported raster image
+  const isRasterImage = (file: File) =>
+    ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type);
+
+  // Process an image file to extract thumbnail and metadata
+  const processImageFile = async (file: File): Promise<{
+    thumbnailUrl: string;
+    dimensions: { width: number; height: number };
+    isAnimated: boolean;
+  }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        // Create thumbnail
+        const canvas = document.createElement('canvas');
+        const maxThumbSize = 80;
+        const scale = Math.min(maxThumbSize / img.width, maxThumbSize / img.height, 1);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+        const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+        // GIFs are considered animated (we'll verify actual animation in the hook)
+        const isAnimated = file.type === 'image/gif';
+
+        resolve({
+          thumbnailUrl,
+          dimensions: { width: img.width, height: img.height },
+          isAnimated,
+        });
+
+        URL.revokeObjectURL(url);
+      };
+
+      img.onerror = () => {
+        // Fallback for failed image load
+        resolve({
+          thumbnailUrl: '',
+          dimensions: { width: 0, height: 0 },
+          isAnimated: false,
+        });
+        URL.revokeObjectURL(url);
+      };
+
+      img.src = url;
+    });
+  };
+
   const processFiles = async (files: File[]) => {
     const mediaFiles = files.filter(
       (file) =>
-        file.type.startsWith('video/') || file.type.startsWith('audio/')
+        file.type.startsWith('video/') || file.type.startsWith('audio/') || isRasterImage(file)
     );
 
     for (const file of mediaFiles) {
@@ -114,13 +168,32 @@ export function MediaLibraryPanel() {
         console.error('Failed to save media to IndexedDB:', err);
       }
 
+      // Determine media type
+      let itemType: MediaItem['type'];
+      if (file.type.startsWith('video/')) {
+        itemType = 'video';
+      } else if (file.type.startsWith('audio/')) {
+        itemType = 'audio';
+      } else {
+        itemType = 'image';
+      }
+
       const item: MediaItem = {
         id,
         name: file.name,
-        type: file.type.startsWith('video/') ? 'video' : 'audio',
+        type: itemType,
         url: URL.createObjectURL(file),
         storageId: id, // Reference to IndexedDB storage
       };
+
+      // For images, extract metadata and thumbnail immediately
+      if (itemType === 'image') {
+        const imageData = await processImageFile(file);
+        item.thumbnailUrl = imageData.thumbnailUrl;
+        item.dimensions = imageData.dimensions;
+        item.isAnimated = imageData.isAnimated;
+      }
+
       addMediaItem(item);
     }
   };
@@ -145,9 +218,45 @@ export function MediaLibraryPanel() {
 
   const addMediaToTimeline = useCallback(
     (item: MediaItem, startTime: number = 0) => {
-      if (item.type !== 'video' && item.type !== 'audio') return;
-      
-      // Find or create appropriate track
+      if (item.type !== 'video' && item.type !== 'audio' && item.type !== 'image') return;
+
+      // Handle image -> sticker clip
+      if (item.type === 'image') {
+        // Find or create sticker track
+        let track = Array.from(tracks.values()).find((t) => t.type === 'sticker');
+
+        if (!track) {
+          track = createTrack({
+            name: 'Sticker Track',
+            type: 'sticker',
+            order: tracks.size,
+          });
+          addTrack(track);
+        }
+
+        const stickerClip: StickerClip = {
+          id: crypto.randomUUID(),
+          trackId: track.id,
+          type: 'sticker',
+          assetId: item.id,
+          assetUrl: item.url,
+          name: item.name,
+          startTime,
+          duration: 5, // Default 5 seconds for images
+          sourceStartTime: 0,
+          locked: false,
+          muted: false,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          position: { x: 50, y: 50 },
+          isAnimated: item.isAnimated ?? false,
+        };
+        addClip(stickerClip);
+        return;
+      }
+
+      // Find or create appropriate track for video/audio
       const trackType = item.type;
       let track = Array.from(tracks.values()).find((t) => t.type === trackType);
 
@@ -254,13 +363,13 @@ export function MediaLibraryPanel() {
           className={isDragOver ? 'text-blue-400' : 'text-zinc-400'}
         />
         <span className="text-xs text-zinc-400 text-center">
-          Drop video or audio files here
+          Drop video, audio, or image files here
         </span>
         <label className="mt-1 px-3 py-1.5 text-xs font-medium text-white bg-zinc-700 hover:bg-zinc-600 rounded cursor-pointer transition-colors">
           Browse Files
           <input
             type="file"
-            accept="video/*,audio/*"
+            accept="video/*,audio/*,image/png,image/jpeg,image/gif,image/webp"
             multiple
             onChange={handleFileSelect}
             className="hidden"
@@ -300,7 +409,9 @@ export function MediaLibraryPanel() {
                 <div
                   className={`
                     flex items-center justify-center w-10 h-10 rounded overflow-hidden flex-shrink-0
-                    ${item.type === 'video' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}
+                    ${item.type === 'video' ? 'bg-blue-500/20 text-blue-400' :
+                      item.type === 'image' ? 'bg-purple-500/20 text-purple-400' :
+                      'bg-green-500/20 text-green-400'}
                   `}
                 >
                   {item.thumbnailUrl ? (
@@ -312,6 +423,8 @@ export function MediaLibraryPanel() {
                     />
                   ) : item.type === 'video' ? (
                     <Film size={18} />
+                  ) : item.type === 'image' ? (
+                    <ImageIcon size={18} />
                   ) : (
                     <Music size={18} />
                   )}
@@ -321,7 +434,9 @@ export function MediaLibraryPanel() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-white truncate">{item.name}</div>
                   <div className="text-xs text-zinc-500">
-                    {formatDuration(item.duration)}
+                    {item.type === 'image' && item.dimensions
+                      ? `${item.dimensions.width}×${item.dimensions.height}${item.isAnimated ? ' (GIF)' : ''}`
+                      : formatDuration(item.duration)}
                   </div>
                 </div>
 

@@ -3,6 +3,50 @@ import { useTimelineStore, type MediaItem } from "@/stores/timelineStore";
 import { projectManager, mediaStorage, type Project } from "@/services/persistence";
 import type { Clip } from "@/schemas";
 
+/**
+ * Extract metadata from an image URL (dimensions, thumbnail, animation status)
+ */
+async function extractImageMetadata(url: string): Promise<{
+  dimensions: { width: number; height: number };
+  isAnimated: boolean;
+  thumbnailUrl?: string;
+}> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+
+    img.onload = () => {
+      // Create thumbnail
+      const canvas = document.createElement('canvas');
+      const maxThumbSize = 80;
+      const scale = Math.min(maxThumbSize / img.width, maxThumbSize / img.height, 1);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext('2d');
+      let thumbnailUrl: string | undefined;
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
+      }
+
+      // Check if GIF (likely animated)
+      const isAnimated = url.includes('.gif') || (img as HTMLImageElement).src.includes('image/gif');
+
+      resolve({
+        dimensions: { width: img.width, height: img.height },
+        isAnimated,
+        thumbnailUrl,
+      });
+    };
+
+    img.onerror = () => {
+      reject(new Error('Failed to load image'));
+    };
+
+    img.src = url;
+  });
+}
+
 interface UseProjectHydrationOptions {
   /** Skip loading if no project exists (won't create default) */
   skipDefaultCreation?: boolean;
@@ -76,7 +120,7 @@ export function useProjectHydration(
       const urlMapping = new Map<string, string>(); // old URL -> new blob URL
 
       for (const item of data.mediaLibrary) {
-        if (item.storageId && (item.type === "video" || item.type === "audio")) {
+        if (item.storageId && (item.type === "video" || item.type === "audio" || item.type === "image")) {
           try {
             const stored = await mediaStorage.getMedia(item.storageId);
             if (stored) {
@@ -92,10 +136,24 @@ export function useProjectHydration(
                   // Ignore - URL may already be invalid
                 }
               }
-              restoredMediaLibrary.push({
-                ...item,
-                url: stored.url,
-              });
+
+              // For images without dimensions, regenerate from blob
+              let restoredItem = { ...item, url: stored.url };
+              if (item.type === "image" && !item.dimensions) {
+                try {
+                  const imageData = await extractImageMetadata(stored.url);
+                  restoredItem = {
+                    ...restoredItem,
+                    dimensions: imageData.dimensions,
+                    isAnimated: imageData.isAnimated,
+                    thumbnailUrl: imageData.thumbnailUrl || item.thumbnailUrl,
+                  };
+                } catch {
+                  // Continue without dimensions if extraction fails
+                }
+              }
+
+              restoredMediaLibrary.push(restoredItem);
               continue;
             }
           } catch (err) {
@@ -108,10 +166,18 @@ export function useProjectHydration(
 
       // Update clip source URLs to use new blob URLs
       const restoredClips: Clip[] = data.clips.map((clip) => {
+        // Handle video/audio clips with sourceUrl
         if ("sourceUrl" in clip && typeof clip.sourceUrl === "string") {
           const newUrl = urlMapping.get(clip.sourceUrl);
           if (newUrl) {
             return { ...clip, sourceUrl: newUrl };
+          }
+        }
+        // Handle sticker clips with assetUrl
+        if ("assetUrl" in clip && typeof clip.assetUrl === "string") {
+          const newUrl = urlMapping.get(clip.assetUrl);
+          if (newUrl) {
+            return { ...clip, assetUrl: newUrl };
           }
         }
         return clip;

@@ -19,12 +19,18 @@ export const SubtitleSchema = z.object({
 export const MediaItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(["video", "audio", "srt"]),
+  type: z.enum(["video", "audio", "srt", "image"]),
   url: z.string(),
   duration: z.number().optional(),
   thumbnailUrl: z.string().optional(),
   storageId: z.string().optional(), // Reference to IndexedDB storage
   subtitles: z.array(SubtitleSchema).optional(),
+  // Image-specific properties
+  dimensions: z.object({
+    width: z.number(),
+    height: z.number(),
+  }).optional(),
+  isAnimated: z.boolean().optional(),
 });
 
 /**

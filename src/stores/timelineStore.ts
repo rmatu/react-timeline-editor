@@ -33,7 +33,7 @@ export interface Subtitle {
 export interface MediaItem {
   id: string;
   name: string;
-  type: 'video' | 'audio' | 'srt';
+  type: 'video' | 'audio' | 'srt' | 'image';
   url: string;
   duration?: number;
   thumbnailUrl?: string;
@@ -41,6 +41,9 @@ export interface MediaItem {
   storageId?: string;
   // For SRT files
   subtitles?: Subtitle[];
+  // For image files
+  isAnimated?: boolean; // true for animated GIFs
+  dimensions?: { width: number; height: number };
 }
 
 // Enable Immer support for Map and Set
