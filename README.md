@@ -584,6 +584,7 @@ const kfResult = KeyframeSchema.safeParse(keyframe);
 | **Ctrl/Cmd + Scroll** | Zoom in/out |
 | **Shift + Scroll** | Horizontal scroll |
 | **Pinch** | Zoom in/out (touch) |
+| **Click on clip** | Select clip; seeks playhead to start only if not already within clip |
 | **Drag on clip** | Move clip |
 | **Drag trim handle** | Trim clip |
 | **Click on ruler** | Seek to position |
