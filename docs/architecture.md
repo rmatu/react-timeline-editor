@@ -305,6 +305,94 @@ const saveToHistory = useTimelineStore((state) => state.saveToHistory);
 -   **`index.css`**: Global resets and specific scrollbar styling.
 -   **Icons**: `lucide-react`.
 
+## 8. Known Pitfalls & Lessons Learned
+
+This section documents bugs encountered during development and patterns to avoid in the future.
+
+### CSS Shrink-to-Fit on Absolutely Positioned Elements
+
+**Symptom**: Draggable elements (stickers, images) visually shrink when dragged towards the right edge of their container, even though the `transform: scale()` value remains unchanged.
+
+**Root Cause**: CSS "shrink-to-fit" behavior. When an element has `position: absolute` with no explicit `width`, the browser calculates its width based on available space within the containing block. As `left` percentage increases beyond 100%, the browser reduces the "available width" to zero, causing internal content with `max-width: 100%` to shrink.
+
+**Example of the bug**:
+```tsx
+// ❌ WRONG - Element will shrink when positioned outside container
+<div
+  style={{
+    position: 'absolute',
+    left: `${position.x}%`,  // When x > 100, element shrinks
+    top: `${position.y}%`,
+    transform: `scale(${scale})`,
+  }}
+>
+  <img style={{ maxWidth: '100%' }} src={url} />
+</div>
+```
+
+**Solution**: Force the container to use its natural content width:
+```tsx
+// ✅ CORRECT - Element maintains size regardless of position
+<div
+  style={{
+    position: 'absolute',
+    left: `${position.x}%`,
+    top: `${position.y}%`,
+    width: 'max-content',  // Prevents shrink-to-fit
+    transform: `scale(${scale})`,
+  }}
+>
+  <img style={{ maxWidth: '100%' }} src={url} />
+</div>
+```
+
+**Prevention**: When creating new draggable/positionable components that can move outside their container bounds, always add `width: 'max-content'` (or a fixed width) to prevent CSS shrinkage.
+
+### Stale Closures in Drag Event Handlers
+
+**Symptom**: Drag operations update the wrong properties, or properties get reset to initial values when the mouse is released.
+
+**Root Cause**: Event handlers registered in `useEffect` capture stale values from React state due to JavaScript closures. When `mouseup` fires, it may read outdated state values.
+
+**Example of the bug**:
+```tsx
+// ❌ WRONG - dragDelta may be stale when handleMouseUp executes
+useEffect(() => {
+  const handleMouseUp = () => {
+    updatePosition(startPos + dragDelta.x);  // dragDelta is stale!
+  };
+  
+  document.addEventListener('mouseup', handleMouseUp);
+  return () => document.removeEventListener('mouseup', handleMouseUp);
+}, [dragMode]);  // dragDelta not in deps = stale closure
+```
+
+**Solution**: Use a ref to hold the current value alongside state:
+```tsx
+// ✅ CORRECT - Ref always has the latest value
+const dragDeltaRef = useRef({ x: 0, y: 0 });
+
+const handleMouseMove = (delta) => {
+  dragDeltaRef.current = delta;  // Update ref
+  setDragDelta(delta);           // Update state for rendering
+};
+
+useEffect(() => {
+  const handleMouseUp = () => {
+    const delta = dragDeltaRef.current;  // Read from ref, not closure
+    updatePosition(startPos + delta.x);
+  };
+  
+  document.addEventListener('mouseup', handleMouseUp);
+  return () => document.removeEventListener('mouseup', handleMouseUp);
+}, [dragMode]);
+```
+
+**Prevention**: For any event handler that needs to read frequently-changing state:
+1. Store the value in a ref (`useRef`)
+2. Update the ref synchronously in the same function that updates state
+3. Read from the ref in event handlers registered via `useEffect`
+
 ## 6. Guidelines for Future Development
 -   **State**: Always add new global "truth" to `timelineStore`. Avoid local state for data that needs to persist or be shared.
 -   **Optimization**: Use granular selectors (e.g., `useTimelineStore(state => state.fps)`) to prevent full re-renders of the Timeline on every frame update.
