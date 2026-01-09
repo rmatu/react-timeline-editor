@@ -258,6 +258,8 @@ export class RenderEngine {
       const ctx = this.ctx;
 
       // Position (use animated position, percentage to pixels)
+      // The preview uses transform: translate(-50%, -50%) to center text at position
+      // So we must use textAlign: center and textBaseline: middle to match
       const x = (animated.position.x / 100) * this.width;
       const y = (animated.position.y / 100) * this.height;
 
@@ -276,7 +278,9 @@ export class RenderEngine {
       // Font setup
       ctx.font = `${clip.fontWeight === "bold" ? "bold " : ""}${fontSize}px ${clip.fontFamily}, sans-serif`;
       ctx.fillStyle = color;
-      ctx.textAlign = clip.textAlign;
+      // Always center-align for positioning (matches preview's translate(-50%, -50%))
+      // The clip.textAlign only affects word-wrapping within the text box in preview
+      ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
       // Background (if set)
@@ -287,9 +291,8 @@ export class RenderEngine {
         const bgW = metrics.width + padding * 2;
 
         ctx.fillStyle = clip.backgroundColor;
-        let rx = 0; // Now drawing relative to translated origin
-        if (clip.textAlign === "center") rx = -bgW / 2;
-        if (clip.textAlign === "right") rx = -bgW;
+        // Center the background around origin
+        const rx = -bgW / 2;
 
         ctx.fillRect(rx, -bgH / 2, bgW, bgH);
         ctx.fillStyle = color;
