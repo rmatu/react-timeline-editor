@@ -3,6 +3,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { VideoProperties } from "./VideoProperties";
 import { AudioProperties } from "./AudioProperties";
 import { TextProperties } from "./TextProperties";
+import { StickerProperties } from "./StickerProperties";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -87,11 +88,7 @@ export const ContextPanel = () => {
                 {clip.type === "video" && <VideoProperties clip={clip} />}
                 {clip.type === "audio" && <AudioProperties clip={clip} />}
                 {clip.type === "text" && <TextProperties clip={clip} />}
-                {clip.type === "sticker" && (
-                  <div className="text-xs text-zinc-500">
-                    Sticker properties coming soon
-                  </div>
-                )}
+                {clip.type === "sticker" && <StickerProperties clip={clip} />}
               </>
             ) : null}
           </div>

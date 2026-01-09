@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { isClipVisible } from "@/utils/geometry";
 import { pixelsToTime } from "@/utils/time";
 import { TRACK_COLORS } from "@/constants/timeline.constants";
-import type { Track as TrackType, Clip, VideoClip, AudioClip } from "@/schemas";
+import type { Track as TrackType, Clip, VideoClip, AudioClip, StickerClip } from "@/schemas";
 import { parseMediaDragData } from "@/components/sidepanel/panels/MediaLibraryPanel";
 
 interface TrackProps {
@@ -77,10 +77,44 @@ export const Track = memo(function Track({
     (e: React.DragEvent) => {
       setIsDragOver(false);
       const mediaData = parseMediaDragData(e);
-      if (!mediaData || mediaData.item.type !== track.type) return;
+      if (!mediaData) return;
+
+      const item = mediaData.item;
+
+      // Sticker tracks accept image media items
+      if (track.type === 'sticker' && item.type === 'image') {
+        e.preventDefault();
+
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const xInTrack = e.clientX - rect.left + scrollX;
+        const startTime = Math.max(0, pixelsToTime(xInTrack, zoomLevel));
+
+        const stickerClip: StickerClip = {
+          id: crypto.randomUUID(),
+          trackId: track.id,
+          type: 'sticker',
+          assetId: item.id,
+          assetUrl: item.url,
+          name: item.name,
+          startTime,
+          duration: 5, // Default 5 seconds for images
+          sourceStartTime: 0,
+          locked: false,
+          muted: false,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          position: { x: 50, y: 50 },
+          isAnimated: item.isAnimated ?? false,
+        };
+        addClip(stickerClip);
+        return;
+      }
+
+      // Video/audio tracks only accept matching types
+      if (item.type !== track.type) return;
 
       e.preventDefault();
-      const item = mediaData.item;
 
       // Calculate drop position
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -111,7 +145,7 @@ export const Track = memo(function Track({
           thumbnailUrl: item.thumbnailUrl,
         };
         addClip(videoClip);
-      } else {
+      } else if (item.type === 'audio') {
         const audioClip: AudioClip = {
           ...baseClip,
           type: 'audio',

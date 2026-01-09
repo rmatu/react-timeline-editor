@@ -39,7 +39,8 @@ const QUALITY_TIERS = [
 ];
 
 // Calculate resolution for a quality tier while maintaining aspect ratio
-function getResolutionForTier(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _getResolutionForTier(
   tierId: string,
   aspectWidth: number,
   aspectHeight: number
@@ -63,7 +64,8 @@ function getResolutionForTier(
 }
 
 // Find the closest quality tier for given dimensions
-function findClosestTier(width: number, height: number): string {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _findClosestTier(width: number, height: number): string {
   const maxDim = Math.max(width, height);
   if (maxDim >= 3000) return "4k";
   if (maxDim >= 1500) return "1080p";

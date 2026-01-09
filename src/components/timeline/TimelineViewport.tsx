@@ -2,7 +2,7 @@ import { forwardRef, useState, useCallback, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { createTrack } from "@/schemas";
-import type { VideoClip, AudioClip } from "@/schemas";
+import type { VideoClip, AudioClip, StickerClip } from "@/schemas";
 import { parseMediaDragData } from "@/components/sidepanel/panels/MediaLibraryPanel";
 import { pixelsToTime } from "@/utils/time";
 
@@ -77,7 +77,42 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
         const xInViewport = e.clientX - rect.left + scrollX;
         const startTime = Math.max(0, pixelsToTime(xInViewport, zoomLevel));
 
-        // Find or create appropriate track
+        // Handle image -> sticker clip
+        if (item.type === 'image') {
+          let track = Array.from(tracks.values()).find((t) => t.type === 'sticker');
+
+          if (!track) {
+            track = createTrack({
+              name: 'Sticker Track',
+              type: 'sticker',
+              order: tracks.size,
+            });
+            addTrack(track);
+          }
+
+          const stickerClip: StickerClip = {
+            id: crypto.randomUUID(),
+            trackId: track.id,
+            type: 'sticker',
+            assetId: item.id,
+            assetUrl: item.url,
+            name: item.name,
+            startTime,
+            duration: 5, // Default 5 seconds for images
+            sourceStartTime: 0,
+            locked: false,
+            muted: false,
+            scale: 1,
+            rotation: 0,
+            opacity: 1,
+            position: { x: 50, y: 50 },
+            isAnimated: item.isAnimated ?? false,
+          };
+          addClip(stickerClip);
+          return;
+        }
+
+        // Find or create appropriate track for video/audio
         const trackType = item.type;
         let track = Array.from(tracks.values()).find((t) => t.type === trackType);
 
@@ -114,7 +149,7 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
             thumbnailUrl: item.thumbnailUrl,
           };
           addClip(videoClip);
-        } else {
+        } else if (item.type === 'audio') {
           const audioClip: AudioClip = {
             ...baseClip,
             type: 'audio',
