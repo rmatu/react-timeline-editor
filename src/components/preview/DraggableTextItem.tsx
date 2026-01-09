@@ -63,6 +63,28 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
   // Get animated properties at current time
   const animated = getAnimatedPropertiesAtTime(clip, currentTime);
 
+  // Track container dimensions for text width constraint
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+  
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const updateDimensions = () => {
+      setContainerDimensions({
+        width: container.offsetWidth,
+        height: container.offsetHeight,
+      });
+    };
+    
+    updateDimensions();
+    
+    const observer = new ResizeObserver(updateDimensions);
+    observer.observe(container);
+    
+    return () => observer.disconnect();
+  }, [containerRef]);
+
   // Base values (from keyframes or clip defaults)
   const baseScale = animated.scale;
   const baseRotation = animated.rotation;
@@ -306,12 +328,24 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
           textAlign: clip.textAlign,
           padding: clip.backgroundColor ? "4px 8px" : 0,
           borderRadius: clip.backgroundColor ? 4 : 0,
-          // Only apply width drag styling after significant movement (>3px) to avoid premature wrapping
+          // Text width constraint priority:
+          // 1. During width drag - use drag delta
+          // 2. Explicit clip.maxWidth set by user
+          // 3. Fall back to 90% of container width (for narrow aspect ratios)
           maxWidth: dragMode === "width" && Math.abs(dragDelta.width) > 3
             ? `${Math.max(50, dragStartRef.current.startWidth + dragDelta.width)}px`
-            : clip.maxWidth ? `${clip.maxWidth}px` : undefined,
-          whiteSpace: clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3) ? "normal" : "nowrap",
-          wordBreak: clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3) ? "break-word" : undefined,
+            : clip.maxWidth 
+              ? `${clip.maxWidth}px` 
+              : containerDimensions.width > 0 
+                ? `${containerDimensions.width * 0.9}px`
+                : undefined,
+          // Always allow word wrap when we have a width constraint
+          whiteSpace: (clip.maxWidth || containerDimensions.width > 0 || (dragMode === "width" && Math.abs(dragDelta.width) > 3)) 
+            ? "normal" 
+            : "nowrap",
+          wordBreak: (clip.maxWidth || containerDimensions.width > 0 || (dragMode === "width" && Math.abs(dragDelta.width) > 3)) 
+            ? "break-word" 
+            : undefined,
           textShadow: !clip.backgroundColor ? "0 2px 4px rgba(0,0,0,0.5)" : "none",
         }}
       >
