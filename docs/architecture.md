@@ -113,6 +113,7 @@ Responsible for manipulation and editing.
     -   **`TrackList`**: Renders the vertical list of `Track` components.
         -   **`Track`**: Droppable zone for Dnd.
             -   **`Clip`**: Draggable/Resizable item.
+                -   **Smart Selection**: Clicking a clip selects it and seeks playhead to clip start **only if** playhead is not already within the clip's time range. This prevents disruptive jumps when selecting clips you're already viewing.
                 -   **`TrimHandle`**: Layouts for left/right edge trimming.
                 -   **`KeyframeMarkers`**: Renders keyframe diamonds at the bottom of clips, draggable for timing adjustments.
 
