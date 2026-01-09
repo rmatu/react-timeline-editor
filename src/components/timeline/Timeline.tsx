@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { useDrag } from "@use-gesture/react";
+import { useAtom } from "jotai";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { useSidepanelStore } from "@/stores/sidepanelStore";
 import { TimelineViewport } from "./TimelineViewport";
@@ -8,7 +9,7 @@ import { Playhead } from "./Playhead";
 import { DurationHandle } from "./DurationHandle";
 import { Track } from "./Track";
 import { TrackHeader } from "./TrackHeader";
-import { SnapGuide } from "./SnapGuide";
+import { SnapGuide, snapGuideAtom, hideSnapGuide } from "./SnapGuide";
 import { NewTrackIndicator } from "./NewTrackIndicator";
 import { useTimelineGestures } from "@/hooks/useTimelineGestures";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -30,6 +31,7 @@ export function Timeline({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [sidebarWidth, setSidebarWidth] = useState(TRACK_HEADER_WIDTH);
+  const [, setSnapGuide] = useAtom(snapGuideAtom);
 
   const {
     zoomLevel,
@@ -106,6 +108,8 @@ export function Timeline({
       const store = useTimelineStore.getState();
       if (store.selectedClipIds.length > 0) {
         store.saveToHistory();
+        // Clear any orphaned snap guide state before removing clips
+        hideSnapGuide(setSnapGuide);
         store.removeSelectedClips();
       }
     },
@@ -206,7 +210,11 @@ export function Timeline({
               }}
             >
               {sortedTracks.map((track) => (
-                <TrackHeader key={track.id} track={track} />
+                <TrackHeader
+                  key={track.id}
+                  track={track}
+                  sortedTracks={sortedTracks}
+                />
               ))}
             </div>
          </div>

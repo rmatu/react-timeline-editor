@@ -3,6 +3,7 @@ import { Upload, Film, Music, Trash2, Plus, GripVertical } from 'lucide-react';
 import { useTimelineStore, type MediaItem } from '@/stores/timelineStore';
 import { createTrack } from '@/schemas';
 import type { VideoClip, AudioClip } from '@/schemas';
+import { mediaStorage } from '@/services/persistence';
 
 // Re-export MediaItem type for use elsewhere
 export type { MediaItem } from '@/stores/timelineStore';
@@ -97,27 +98,47 @@ export function MediaLibraryPanel() {
     []
   );
 
-  const processFiles = (files: File[]) => {
+  const processFiles = async (files: File[]) => {
     const mediaFiles = files.filter(
       (file) =>
         file.type.startsWith('video/') || file.type.startsWith('audio/')
     );
 
-    mediaFiles.forEach((file) => {
+    for (const file of mediaFiles) {
+      const id = crypto.randomUUID();
+
+      // Save file to IndexedDB for persistence across reloads
+      try {
+        await mediaStorage.saveMedia(id, file, file.name);
+      } catch (err) {
+        console.error('Failed to save media to IndexedDB:', err);
+      }
+
       const item: MediaItem = {
-        id: crypto.randomUUID(),
+        id,
         name: file.name,
         type: file.type.startsWith('video/') ? 'video' : 'audio',
         url: URL.createObjectURL(file),
+        storageId: id, // Reference to IndexedDB storage
       };
       addMediaItem(item);
-    });
+    }
   };
 
-  const handleRemoveItem = useCallback((id: string) => {
+  const handleRemoveItem = useCallback(async (id: string) => {
     const item = mediaLibrary.get(id);
-    if (item && item.url.startsWith('blob:')) {
-      URL.revokeObjectURL(item.url);
+    if (item) {
+      if (item.url.startsWith('blob:')) {
+        URL.revokeObjectURL(item.url);
+      }
+      // Delete from IndexedDB
+      if (item.storageId) {
+        try {
+          await mediaStorage.deleteMedia(item.storageId);
+        } catch (err) {
+          console.error('Failed to delete media from IndexedDB:', err);
+        }
+      }
     }
     removeMediaItem(id);
   }, [mediaLibrary, removeMediaItem]);

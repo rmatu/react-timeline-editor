@@ -15,6 +15,7 @@ interface UseKeyboardShortcutsOptions {
   onSplit?: () => void;
   onMerge?: () => void;
   onToggleSidepanel?: () => void;
+  onSave?: () => void;
   disabled?: boolean;
 }
 
@@ -32,6 +33,7 @@ export function useKeyboardShortcuts({
   onSplit,
   onMerge,
   onToggleSidepanel,
+  onSave,
   disabled = false,
 }: UseKeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
@@ -62,6 +64,13 @@ export function useKeyboardShortcuts({
       if ((KEYBOARD_SHORTCUTS.DELETE as readonly string[]).includes(key) && !ctrl && !shift) {
         e.preventDefault();
         onDelete?.();
+        return;
+      }
+
+      // Save (Ctrl/Cmd + S)
+      if (key.toLowerCase() === "s" && ctrl && !shift) {
+        e.preventDefault();
+        onSave?.();
         return;
       }
 
@@ -158,6 +167,7 @@ export function useKeyboardShortcuts({
       onSplit,
       onMerge,
       onToggleSidepanel,
+      onSave,
     ]
   );
 

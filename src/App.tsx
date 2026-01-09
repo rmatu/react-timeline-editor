@@ -1,182 +1,111 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, Loader2, Cloud, CloudOff, Pencil } from "lucide-react";
 import { Timeline } from "@/components/timeline";
 import { VideoPreview, PreviewControls } from "@/components/preview";
 import { ResizablePanel } from "@/components/ResizablePanel";
 import { Sidepanel } from "@/components/sidepanel";
-import { useTimelineStore, type MediaItem } from "@/stores/timelineStore";
+import { useTimelineStore } from "@/stores/timelineStore";
 import { useSidepanelStore } from "@/stores/sidepanelStore";
-import { createTrack } from "@/schemas";
-import type { VideoClip, AudioClip, TextClip } from "@/schemas";
 import { exportToMp4, exportWithWebCodecs, isWebCodecsSupported } from "@/utils/export";
 import { ExportSettingsModal, type ExportSettings } from "@/components/ExportSettingsModal";
 import { ContextPanel } from "@/components/properties/ContextPanel";
+import { useAutoSave, useProjectHydration } from "@/hooks";
+import { projectManager } from "@/services/persistence";
 
-// Demo data - using local example files from /files folder
-const demoTracks = [
-  createTrack({ name: "Video", type: "video", order: 0 }),
-  createTrack({ name: "Audio", type: "audio", order: 1 }),
-  createTrack({ name: "Subtitles", type: "text", order: 2 }),
-];
-
-// Text clips generated from example-dubbing.srt
-const demoClips: Array<VideoClip | AudioClip | TextClip> = [
-  // Video clip - local MP4 file
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[0].id,
-    type: "video",
-    startTime: 0,
-    duration: 25,
-    sourceStartTime: 0,
-    maxDuration: 120, // Approximate duration of the example video
-    sourceUrl: "/files/file_example_MP4_1920_18MG.mp4",
-    volume: 1,
-    playbackRate: 1,
-    locked: false,
-    muted: false,
-  },
-  // Audio clip - local MP3 file
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[1].id,
-    type: "audio",
-    startTime: 0,
-    duration: 25,
-    sourceStartTime: 0,
-    sourceUrl: "/files/file_example_MP3_700KB.mp3",
-    volume: 0.8,
-    fadeIn: 0.5,
-    fadeOut: 1,
-    locked: false,
-    muted: false,
-  },
-  // Subtitle 1: 00:00:00,000 --> 00:00:02,500
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[2].id,
-    type: "text",
-    startTime: 0,
-    duration: 2.5,
-    sourceStartTime: 0,
-    content: "Welcome to the Example Subtitle File!",
-    fontFamily: "Inter",
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#ffffff",
-    textAlign: "center",
-    position: { x: 50, y: 85 },
-    animation: "fade",
-    locked: false,
-    muted: false,
-  },
-  // Subtitle 2: 00:00:03,000 --> 00:00:06,000
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[2].id,
-    type: "text",
-    startTime: 3,
-    duration: 3,
-    sourceStartTime: 0,
-    content: "This is a demonstration of SRT subtitles.",
-    fontFamily: "Inter",
-    fontSize: 32,
-    fontWeight: "normal",
-    color: "#ffffff",
-    textAlign: "center",
-    position: { x: 50, y: 85 },
-    animation: "fade",
-    locked: false,
-    muted: false,
-  },
-  // Subtitle 3: 00:00:07,000 --> 00:00:10,500
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[2].id,
-    type: "text",
-    startTime: 7,
-    duration: 3.5,
-    sourceStartTime: 0,
-    content: "You can use SRT files to add subtitles to your videos.",
-    fontFamily: "Inter",
-    fontSize: 32,
-    fontWeight: "normal",
-    color: "#ffffff",
-    textAlign: "center",
-    position: { x: 50, y: 85 },
-    animation: "fade",
-    locked: false,
-    muted: false,
-  },
-  // Subtitle 4: 00:00:12,000 --> 00:00:15,000
-  {
-    id: crypto.randomUUID(),
-    trackId: demoTracks[2].id,
-    type: "text",
-    startTime: 12,
-    duration: 3,
-    sourceStartTime: 0,
-    content: "Each subtitle entry consists of a number, a timecode, and the subtitle text.",
-    fontFamily: "Inter",
-    fontSize: 28,
-    fontWeight: "normal",
-    color: "#ffffff",
-    textAlign: "center",
-    position: { x: 50, y: 85 },
-    animation: "fade",
-    locked: false,
-    muted: false,
-  },
-];
-
-// Initial media library items - single source of truth
-const demoMediaLibrary: MediaItem[] = [
-  {
-    id: crypto.randomUUID(),
-    name: 'file_example_MP4_1920_18MG.mp4',
-    type: 'video',
-    url: '/files/file_example_MP4_1920_18MG.mp4',
-  },
-  {
-    id: crypto.randomUUID(),
-    name: 'file_example_MP3_700KB.mp3',
-    type: 'audio',
-    url: '/files/file_example_MP3_700KB.mp3',
-  },
-  {
-    id: crypto.randomUUID(),
-    name: 'example-dubbing.srt',
-    type: 'srt',
-    url: '/files/example-dubbing.srt',
-    subtitles: [
-      { index: 1, startTime: 0, endTime: 2.5, text: 'Welcome to the Example Subtitle File!' },
-      { index: 2, startTime: 3, endTime: 6, text: 'This is a demonstration of SRT subtitles.' },
-      { index: 3, startTime: 7, endTime: 10.5, text: 'You can use SRT files to add subtitles to your videos.' },
-      { index: 4, startTime: 12, endTime: 15, text: 'Each subtitle entry consists of a number, a timecode, and the subtitle text.' },
-      { index: 5, startTime: 16, endTime: 20, text: 'The timecode format is hours:minutes:seconds,milliseconds.' },
-      { index: 6, startTime: 21, endTime: 25, text: 'You can adjust the timing to match your video.' },
-      { index: 7, startTime: 26, endTime: 30, text: 'Make sure the subtitle text is clear and readable.' },
-      { index: 8, startTime: 31, endTime: 35, text: "And that's how you create an SRT subtitle file!" },
-      { index: 9, startTime: 36, endTime: 40, text: 'Enjoy adding subtitles to your videos!' },
-    ],
-  },
-];
 function App() {
   const {
     currentTime,
     isPlaying,
     togglePlayback,
     setCurrentTime,
-    loadTimeline,
     exportTimeline,
-    setDuration,
     resolution,
   } = useTimelineStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const toggleSidepanel = useSidepanelStore((s) => s.toggle);
+
+  // Project persistence
+  const {
+    isLoading: isProjectLoading,
+    isError: isProjectError,
+    currentProject,
+    updateProjectName,
+  } = useProjectHydration();
+
+  // Auto-save (enabled once project is loaded)
+  const { isSaving, hasPendingChanges, saveNow } = useAutoSave({
+    adapter: projectManager.getAdapter(),
+    projectId: currentProject?.id ?? null,
+    enabled: !isProjectLoading && !isProjectError && !!currentProject,
+    onSaveError: (err) => {
+      toast.error("Failed to save", { description: err.message });
+    },
+  });
+
+  // Project name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  // Handle Ctrl+S for manual save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (currentProject && !isSaving) {
+          saveNow();
+          toast.success("Project saved");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentProject, isSaving, saveNow]);
+
+  const handleStartEditName = useCallback(() => {
+    if (currentProject) {
+      setEditedName(currentProject.name);
+      setIsEditingName(true);
+    }
+  }, [currentProject]);
+
+  const handleSaveName = useCallback(async () => {
+    setIsEditingName(false);
+    if (!currentProject || !editedName.trim()) return;
+
+    if (editedName.trim() !== currentProject.name) {
+      const result = await projectManager.renameProject(currentProject.id, editedName.trim());
+      if (result.success) {
+        updateProjectName(editedName.trim());
+        toast.success("Project renamed");
+      } else {
+        toast.error("Failed to rename project");
+      }
+    }
+  }, [currentProject, editedName, updateProjectName]);
+
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveName();
+    } else if (e.key === "Escape") {
+      setIsEditingName(false);
+      if (currentProject) {
+        setEditedName(currentProject.name);
+      }
+    }
+  }, [handleSaveName, currentProject]);
 
   const handleExportJson = () => {
     const data = exportTimeline();
@@ -252,11 +181,38 @@ function App() {
     }
   };
 
-  // Load demo data on mount
-  useEffect(() => {
-    // setDuration(30); // Removed to allow default duration and auto-extension
-    loadTimeline(demoTracks, demoClips, demoMediaLibrary);
-  }, [loadTimeline, setDuration]);
+  // Show loading screen while project is loading
+  if (isProjectLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <p className="text-zinc-400">Loading project...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (isProjectError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-950">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <CloudOff className="h-12 w-12 text-red-500" />
+          <h2 className="text-xl font-semibold text-white">Failed to load project</h2>
+          <p className="text-zinc-400 max-w-md">
+            There was an error loading your project. Please try refreshing the page.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col bg-zinc-950">
@@ -270,9 +226,46 @@ function App() {
           >
             <PanelLeft size={18} />
           </button>
-          <h1 className="text-lg font-semibold text-white">
-            React Video Timeline
-          </h1>
+          {/* Editable project name */}
+          {isEditingName ? (
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleSaveName}
+              onKeyDown={handleNameKeyDown}
+              className="text-lg font-semibold text-white bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 focus:outline-none focus:border-blue-500 min-w-[150px]"
+            />
+          ) : (
+            <button
+              onClick={handleStartEditName}
+              className="group flex items-center gap-2 text-lg font-semibold text-white hover:text-zinc-300 transition-colors"
+              title="Click to rename project"
+            >
+              {currentProject?.name ?? "React Video Timeline"}
+              <Pencil className="h-3.5 w-3.5 opacity-0 group-hover:opacity-50 transition-opacity" />
+            </button>
+          )}
+          {/* Save status indicator */}
+          <div className="flex items-center gap-1.5 text-xs">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+                <span className="text-blue-400">Saving...</span>
+              </>
+            ) : hasPendingChanges ? (
+              <>
+                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                <span className="text-amber-500">Unsaved</span>
+              </>
+            ) : (
+              <>
+                <Cloud className="h-3 w-3 text-green-500" />
+                <span className="text-green-500">Saved</span>
+              </>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-zinc-500">
           <span>Drag clips to move</span>

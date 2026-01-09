@@ -18,6 +18,7 @@ export interface TimelineExport {
   resolution: { width: number; height: number };
   tracks: Track[];
   clips: Clip[];
+  mediaLibrary: MediaItem[];
 }
 
 // Subtitle entry for SRT files
@@ -36,6 +37,8 @@ export interface MediaItem {
   url: string;
   duration?: number;
   thumbnailUrl?: string;
+  // Reference to IndexedDB storage (for restoring blob URLs on reload)
+  storageId?: string;
   // For SRT files
   subtitles?: Subtitle[];
 }
@@ -677,6 +680,7 @@ export const useTimelineStore = create<TimelineStore>()(
           resolution: state.resolution,
           tracks: Array.from(state.tracks.values()),
           clips: Array.from(state.clips.values()),
+          mediaLibrary: Array.from(state.mediaLibrary.values()),
         };
       },
 
