@@ -216,8 +216,9 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
 
       if (mode === "move" && (Math.abs(dragDelta.x) > MIN_MOVE_THRESHOLD || Math.abs(dragDelta.y) > MIN_MOVE_THRESHOLD)) {
         saveToHistory();
-        const newX = Math.max(0, Math.min(100, startPosX + dragDelta.x));
-        const newY = Math.max(0, Math.min(100, startPosY + dragDelta.y));
+        // Allow free positioning - no clamping to 0-100% so text can reach edges
+        const newX = startPosX + dragDelta.x;
+        const newY = startPosY + dragDelta.y;
 
         // Position is always stored on clip directly (not animated via keyframes typically)
         updateClip(clip.id, { position: { x: newX, y: newY } });
