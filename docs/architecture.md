@@ -113,6 +113,7 @@ Responsible for manipulation and editing.
     -   **`TrackList`**: Renders the vertical list of `Track` components.
         -   **`Track`**: Droppable zone for Dnd.
             -   **`Clip`**: Draggable/Resizable item.
+                -   **Smart Selection**: Clicking a clip selects it and seeks playhead to clip start **only if** playhead is not already within the clip's time range. This prevents disruptive jumps when selecting clips you're already viewing.
                 -   **`TrimHandle`**: Layouts for left/right edge trimming.
                 -   **`KeyframeMarkers`**: Renders keyframe diamonds at the bottom of clips, draggable for timing adjustments.
 
@@ -384,3 +385,92 @@ Clip splitting and merging are handled via store actions (`splitClip`, `mergeCli
     -   The merged clip is selected after the operation.
 
 -   **Undo/Redo**: Both operations save to history before executing, enabling full undo/redo support.
+
+### Persistence Layer
+The app implements a persistence layer with auto-save functionality and adapter pattern for backend flexibility.
+
+**1. Architecture:**
+```
+src/
+├── services/
+│   └── persistence/
+│       ├── index.ts                    # Barrel exports
+│       ├── types.ts                    # TypeScript interfaces
+│       ├── constants.ts                # Storage keys, config
+│       ├── adapters/
+│       │   ├── PersistenceAdapter.ts   # Interface definition
+│       │   ├── LocalStorageAdapter.ts  # localStorage implementation
+│       │   └── SupabaseAdapter.ts      # Cloud storage stub (future)
+│       ├── ProjectManager.ts           # High-level project operations
+│       └── MediaStorage.ts             # IndexedDB for media files
+├── hooks/
+│   ├── useAutoSave.ts                  # Debounced auto-save hook
+│   └── useProjectHydration.ts          # Load project on app start
+└── schemas/
+    └── project.schema.ts               # Zod validation schemas
+```
+
+**2. Data Flow:**
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  timelineStore  │────▶│   useAutoSave    │────▶│ PersistenceAdapter│
+│ (Zustand)       │     │ (2s debounce)    │     │ (localStorage)  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                                          │
+                                                          ▼
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Media Files    │────▶│  MediaStorage    │────▶│   IndexedDB     │
+│  (blob URLs)    │     │  (service)       │     │ (file blobs)    │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+**3. Storage Strategy:**
+-   **Project Metadata** → localStorage (`video-timeline:projects`)
+    -   List of projects with id, name, createdAt, updatedAt
+    -   Active project ID
+-   **Project Data** → localStorage (`video-timeline:project:{id}`)
+    -   fps, duration, resolution
+    -   tracks[], clips[], mediaLibrary[]
+-   **Media Files** → IndexedDB (`video-timeline-media`)
+    -   Actual video/audio file blobs
+    -   Referenced by `storageId` in mediaLibrary items
+
+**4. Blob URL Restoration:**
+Blob URLs (e.g., `blob:http://localhost:5173/abc-123`) are session-specific and become invalid after page reload. The system handles this by:
+1.  **On Import**: When a file is dropped into MediaLibrary:
+    -   File is saved to IndexedDB via `mediaStorage.saveMedia()`
+    -   A `storageId` reference is stored in the MediaItem
+    -   A temporary blob URL is created for immediate playback
+2.  **On Save**: Project data (including `storageId` references) is saved to localStorage
+3.  **On Reload**: `useProjectHydration` restores media:
+    -   Loads project data from localStorage
+    -   For each media item with `storageId`, fetches blob from IndexedDB
+    -   Creates fresh blob URLs
+    -   Updates clip `sourceUrl` references via URL mapping
+
+**5. Auto-Save Behavior:**
+-   2-second debounce after state changes
+-   10-second max wait for continuous changes
+-   Watches: tracks, clips, mediaLibrary, fps, duration, resolution
+-   Ignores: currentTime, isPlaying, selection (transient state)
+-   `beforeunload` warning if unsaved changes exist
+
+**6. Cloud Migration Strategy:**
+When migrating to Supabase (or other cloud storage):
+1.  **Implement `SupabaseAdapter`** following `PersistenceAdapter` interface:
+    -   `listProjects()` → `supabase.from('projects').select()`
+    -   `saveProjectData()` → `supabase.from('projects').upsert()`
+    -   etc.
+2.  **Media files** will need separate handling:
+    -   Upload to Supabase Storage or S3
+    -   Store public URL instead of blob URL
+    -   Skip IndexedDB on reload (files already remote)
+3.  **Swap adapter** at runtime:
+    ```typescript
+    const supabaseAdapter = new SupabaseAdapter(supabaseClient);
+    await projectManager.setAdapter(supabaseAdapter);
+    ```
+4.  **Sync strategy** considerations:
+    -   Optimistic updates (save locally, sync in background)
+    -   Conflict resolution for multi-device editing
+    -   Offline support with eventual consistency

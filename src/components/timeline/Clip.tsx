@@ -71,7 +71,7 @@ export const Clip = memo(function Clip({
     disabled,
   });
 
-  // Handle click to select and seek playhead to clip start
+  // Handle click to select and seek playhead to clip start (only if not already on clip)
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -79,10 +79,14 @@ export const Clip = memo(function Clip({
       const multi = e.metaKey || e.ctrlKey || e.shiftKey;
       onSelect(clip.id, multi);
       
-      // Seek playhead to clip start when clicking
-      useTimelineStore.getState().setCurrentTime(clip.startTime);
+      // Only seek playhead to clip start if not already within the clip's time range
+      const clipEnd = clip.startTime + clip.duration;
+      const isPlayheadOnClip = currentTime >= clip.startTime && currentTime < clipEnd;
+      if (!isPlayheadOnClip) {
+        useTimelineStore.getState().setCurrentTime(clip.startTime);
+      }
     },
-    [clip.id, clip.startTime, onSelect, disabled]
+    [clip.id, clip.startTime, clip.duration, currentTime, onSelect, disabled]
   );
 
   // Handle double-click (could open clip editor)

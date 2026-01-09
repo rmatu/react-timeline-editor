@@ -313,6 +313,8 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
         top: `${visualY}%`,
         transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
         opacity: animated.opacity,
+        // Prevent width collapsing when positioned near container edges
+        width: clip.maxWidth ? `${clip.maxWidth}px` : 'max-content',
       }}
       onMouseDown={handleMoveStart}
     >

@@ -49,7 +49,7 @@ export const TextClipSchema = BaseClipSchema.extend({
     .default("#ffffff"),
   backgroundColor: z
     .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .regex(/^(#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?|transparent|rgba?\([^)]+\))$/)
     .optional(),
   textAlign: z.enum(["left", "center", "right"]).default("center"),
   position: z

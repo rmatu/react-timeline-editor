@@ -36,3 +36,26 @@ export {
   RESOLUTION_PRESETS,
 } from "./timeline.schema";
 export type { Timeline, Resolution } from "./timeline.schema";
+
+export {
+  ProjectSchema,
+  ProjectMetadataSchema,
+  ProjectDataSchema,
+  StoredProjectListSchema,
+  MediaItemSchema,
+  SubtitleSchema,
+  validateProject,
+  validateProjectData,
+  validateProjectMetadata,
+  validateProjectList,
+  safeValidateProjectData,
+  safeValidateProjectList,
+} from "./project.schema";
+export type {
+  Project,
+  ProjectMetadata,
+  ProjectData,
+  StoredProjectList,
+  MediaItemStored,
+  Subtitle,
+} from "./project.schema";
