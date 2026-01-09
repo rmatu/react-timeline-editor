@@ -60,7 +60,7 @@ export const ContextPanel = () => {
     <Sheet open={isPanelOpen} modal={false}>
       <SheetContent
         side="right"
-        className="w-80 bg-zinc-900 border-l border-zinc-700 p-0 rounded-l-xl shadow-2xl flex flex-col"
+        className="top-14 h-[calc(100%-3.5rem)] w-80 bg-zinc-900 border-l border-zinc-700 p-0 rounded-tl-xl shadow-2xl flex flex-col focus:outline-none"
         showOverlay={false}
         showCloseButton={false}
         onInteractOutside={(e) => e.preventDefault()}
