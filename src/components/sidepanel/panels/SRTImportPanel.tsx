@@ -198,6 +198,10 @@ export function SRTImportPanel() {
           textAlign: 'center',
           position: { x: 50, y: 85 },
           animation: 'none',
+          // Transform properties
+          opacity: 1,
+          scale: 1,
+          rotation: 0,
           locked: false,
           muted: false,
         };

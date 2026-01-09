@@ -122,12 +122,15 @@ Context-sensitive panel for editing selected clip properties.
 
 -   **`ContextPanel`**: Main container that switches between different property editors based on clip type.
     -   **Non-blocking Modal**: Uses `modal={false}` to allow interaction with timeline while panel is open.
+    -   **ScrollArea**: Wraps content in custom Shadcn `ScrollArea` for consistent scrolling experience.
     -   **Persistent State**: Panel remains open until explicitly closed, preserving editing context.
 -   **`VideoProperties`**: Controls for video clips (volume, playback rate, etc.).
     -   All edits tracked in history for undo/redo support.
 -   **`AudioProperties`**: Controls for audio clips (volume, fade in/out, etc.).
     -   All edits tracked in history for undo/redo support.
 -   **`TextProperties`**: Controls for text clips (content, font, color, alignment, etc.).
+    -   **Unified Transform UI**: Uses `KeyframeEditor` for Position, Scale, Rotation, and Opacity to match Video properties.
+    -   **Width Control**: Dedicated control for `maxWidth` (word wrapping).
     -   All edits tracked in history for undo/redo support.
 -   **`KeyframeEditor`**: Universal keyframe editor component.
     -   Displays current value of any animatable property.

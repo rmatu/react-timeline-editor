@@ -10,6 +10,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
 - **Keyframe Animation** - Full animation system with interpolation, easing functions, and timeline visualization
   - Animate opacity, scale, rotation, position, volume, color, font size, and more
+  - **Unified Editor**: Consistent UI across all clip types (video, text, audio) for keyframe management
   - Visual keyframe markers on timeline with drag-to-reposition support
   - Multiple easing functions (linear, ease-in, ease-out, ease-in-out, custom cubic-bezier)
   - Real-time preview and WYSIWYG export with animated properties
@@ -29,6 +30,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 -   **Properties Panel** - Non-blocking clip property editor with comprehensive controls
   - Edit video, audio, and text properties while timeline remains interactive
   - Context-sensitive UI adapts to selected clip type
+  - **ScrollArea**: Custom styled scrollbars for consistent cross-browser experience
   - All edits support undo/redo with optimized history tracking
 -   **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
