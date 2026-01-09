@@ -146,7 +146,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
             <Diamond size={8} />
             <span>{keyframes.length} Keyframe{keyframes.length !== 1 ? "s" : ""}</span>
           </div>
-          <div className="max-h-32 overflow-y-auto space-y-1">
+          <div className="space-y-1">
             {keyframes.map((kf) => {
               const isAtThisKeyframe = Math.abs(kf.time - clipTime) < 0.017;
               return (
