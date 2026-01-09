@@ -338,38 +338,44 @@ export class RenderEngine {
       const lines = this.wrapText(ctx, clip.content, clip.maxWidth);
       const totalHeight = lines.length * lineHeight;
 
-      // Calculate the horizontal offset for the anchor point based on alignment
-      // The preview centers the text box at the position using translate(-50%, -50%)
-      // So we need to calculate where to draw relative to origin (0, 0)
-      let anchorOffsetX = 0;
-      if (clip.maxWidth) {
-        // With explicit maxWidth, text box is that width
-        switch (clip.textAlign) {
-          case "left":
-            anchorOffsetX = -clip.maxWidth / 2;
-            break;
-          case "right":
-            anchorOffsetX = clip.maxWidth / 2;
-            break;
-          case "center":
-          default:
-            anchorOffsetX = 0;
-            break;
-        }
+      // Measure max line width for alignment and background
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        const metrics = ctx.measureText(line);
+        maxLineWidth = Math.max(maxLineWidth, metrics.width);
       }
-      // Without maxWidth, text is naturally centered (single line or short text)
+
+      // Calculate the horizontal offset for the anchor point based on alignment
+      // The preview centers the text box at the position using transform: translate(-50%, -50%)
+      // So the anchor point (0,0) corresponds to the center of the text box.
+
+      let anchorOffsetX = 0;
+
+      // Effective width is either the explicit maxWidth or the actual content width
+      const effectiveWidth = clip.maxWidth ?? maxLineWidth;
+
+      switch (clip.textAlign) {
+        case "left":
+          // Align left edge of text box to left edge of content
+          // Box center is 0. Left edge is -width/2.
+          anchorOffsetX = -effectiveWidth / 2;
+          break;
+        case "right":
+          // Align right edge of text box to right edge of content
+          // Box center is 0. Right edge is width/2.
+          anchorOffsetX = effectiveWidth / 2;
+          break;
+        case "center":
+        default:
+          anchorOffsetX = 0;
+          break;
+      }
 
       // Background (if set)
       if (clip.backgroundColor) {
-        // Measure the widest line
-        let maxLineWidth = 0;
-        for (const line of lines) {
-          const metrics = ctx.measureText(line);
-          maxLineWidth = Math.max(maxLineWidth, metrics.width);
-        }
-
         const padding = 8;
-        const bgW = (clip.maxWidth ?? maxLineWidth) + padding * 2;
+        // Use effective width for background too
+        const bgW = effectiveWidth + padding * 2;
         const bgH = totalHeight + padding;
 
         ctx.fillStyle = clip.backgroundColor;
