@@ -221,7 +221,11 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
         const newY = startPosY + dragDelta.y;
 
         // Position is always stored on clip directly (not animated via keyframes typically)
-        updateClip(clip.id, { position: { x: newX, y: newY } });
+        if (hasKeyframesFor("position")) {
+          useTimelineStore.getState().addKeyframeAtCurrentTime(clip.id, "position", { x: newX, y: newY });
+        } else {
+          updateClip(clip.id, { position: { x: newX, y: newY } });
+        }
       } else if (mode === "scale" && dragDelta.scale !== 0) {
         saveToHistory();
         const newScale = Math.max(0.1, Math.min(5, startScale * (1 + dragDelta.scale)));
