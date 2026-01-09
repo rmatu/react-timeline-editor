@@ -41,7 +41,7 @@ export const TextClipSchema = BaseClipSchema.extend({
   type: z.literal("text"),
   content: z.string(),
   fontFamily: z.string().default("Inter"),
-  fontSize: z.number().positive().default(24),
+  fontSize: z.number().min(1).default(24),
   fontWeight: z.enum(["normal", "bold"]).default("normal"),
   color: z
     .string()
@@ -50,7 +50,7 @@ export const TextClipSchema = BaseClipSchema.extend({
   backgroundColor: z
     .string()
     .regex(/^(#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?|transparent|rgba?\([^)]+\))$/)
-    .optional(),
+    .nullish(),
   textAlign: z.enum(["left", "center", "right"]).default("center"),
   position: z
     .object({
@@ -63,10 +63,10 @@ export const TextClipSchema = BaseClipSchema.extend({
     .optional()
     .default("none"),
   // Transform properties (base values, can be overridden by keyframes)
-  scale: z.number().positive().default(1),
+  scale: z.number().min(0).default(1),
   rotation: z.number().default(0), // Degrees
   opacity: z.number().min(0).max(1).default(1),
-  maxWidth: z.number().positive().optional(), // Max width in pixels for text wrapping
+  maxWidth: z.number().min(0).nullish(), // Max width in pixels for text wrapping
 });
 
 // Sticker/effect clip schema

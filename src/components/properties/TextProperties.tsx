@@ -70,14 +70,61 @@ export const TextProperties = ({ clip }: TextPropertiesProps) => {
         </div>
       </div>
 
-      {/* Keyframe Animation Section */}
+      {/* Transform Section */}
       <div className="border-t border-zinc-800 pt-4 mt-4">
-        <h3 className="text-xs font-semibold text-zinc-300 mb-3">Keyframe Animation</h3>
+        <h3 className="text-xs font-semibold text-zinc-300 mb-3">Transform</h3>
         <div className="space-y-4">
-          <KeyframeEditor clip={clip} property="opacity" />
+          <KeyframeEditor clip={clip} property="position" />
           <KeyframeEditor clip={clip} property="scale" />
           <KeyframeEditor clip={clip} property="rotation" />
-          <KeyframeEditor clip={clip} property="position" />
+          <KeyframeEditor clip={clip} property="opacity" />
+          
+          {/* Width (maxWidth) - Not animated */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-zinc-400">Width</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={clip.maxWidth || ''}
+                placeholder="Auto"
+                min={50}
+                step={10}
+                onChange={(e) => {
+                  const val = e.target.value ? parseFloat(e.target.value) : undefined;
+                  updateClip(clip.id, { maxWidth: val });
+                }}
+                onBlur={(e) => {
+                  saveToHistory();
+                  const val = e.target.value ? parseFloat(e.target.value) : undefined;
+                  updateClip(clip.id, { maxWidth: val });
+                }}
+                className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300"
+              />
+              <span className="text-xs text-zinc-500">px</span>
+              {clip.maxWidth && (
+                <button
+                  onClick={() => {
+                    saveToHistory();
+                    updateClip(clip.id, { maxWidth: undefined });
+                  }}
+                  className="text-xs text-zinc-500 hover:text-red-400 px-1"
+                  title="Reset to auto width"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-zinc-600">Constrains text box width for word wrapping</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Keyframe Animation Section for remaining props */}
+      <div className="border-t border-zinc-800 pt-4 mt-4">
+        <h3 className="text-xs font-semibold text-zinc-300 mb-3">Styles</h3>
+        <div className="space-y-4">
           <KeyframeEditor clip={clip} property="fontSize" label="Font Size" />
           <KeyframeEditor clip={clip} property="color" />
         </div>

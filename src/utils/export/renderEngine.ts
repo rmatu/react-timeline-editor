@@ -248,6 +248,57 @@ export class RenderEngine {
     }
   }
 
+  /**
+   * Wrap text into lines that fit within maxWidth.
+   * If no maxWidth is set, returns a single line with the full text.
+   */
+  private wrapText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number | undefined
+  ): string[] {
+    // First, split by explicit newlines
+    const paragraphs = text.split("\n");
+
+    // If no maxWidth, just return paragraphs as-is
+    if (!maxWidth) {
+      return paragraphs;
+    }
+
+    const lines: string[] = [];
+
+    for (const paragraph of paragraphs) {
+      if (!paragraph) {
+        // Empty line (explicit newline)
+        lines.push("");
+        continue;
+      }
+
+      const words = paragraph.split(" ");
+      let currentLine = "";
+
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const metrics = ctx.measureText(testLine);
+
+        if (metrics.width > maxWidth && currentLine) {
+          // Line is too long, push current and start new
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      // Push remaining text
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+    }
+
+    return lines.length > 0 ? lines : [""];
+  }
+
   private renderTextLayer(time: number): void {
     const textClips = this.getActiveClips<TextClip>("text", time);
 
@@ -258,6 +309,7 @@ export class RenderEngine {
       const ctx = this.ctx;
 
       // Position (use animated position, percentage to pixels)
+      // The preview uses transform: translate(-50%, -50%) to center the text box at position
       const x = (animated.position.x / 100) * this.width;
       const y = (animated.position.y / 100) * this.height;
 
@@ -272,26 +324,63 @@ export class RenderEngine {
       // Use animated fontSize and color
       const fontSize = animated.fontSize ?? clip.fontSize;
       const color = animated.color ?? clip.color;
+      const lineHeight = fontSize * 1.2;
 
       // Font setup
       ctx.font = `${clip.fontWeight === "bold" ? "bold " : ""}${fontSize}px ${clip.fontFamily}, sans-serif`;
       ctx.fillStyle = color;
+
+      // Use the clip's actual text alignment for multi-line text
       ctx.textAlign = clip.textAlign;
       ctx.textBaseline = "middle";
 
+      // Wrap text into lines based on maxWidth
+      const lines = this.wrapText(ctx, clip.content, clip.maxWidth);
+      const totalHeight = lines.length * lineHeight;
+
+      // Measure max line width for alignment and background
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        const metrics = ctx.measureText(line);
+        maxLineWidth = Math.max(maxLineWidth, metrics.width);
+      }
+
+      // Calculate the horizontal offset for the anchor point based on alignment
+      // The preview centers the text box at the position using transform: translate(-50%, -50%)
+      // So the anchor point (0,0) corresponds to the center of the text box.
+
+      let anchorOffsetX = 0;
+
+      // Effective width is either the explicit maxWidth or the actual content width
+      const effectiveWidth = clip.maxWidth ?? maxLineWidth;
+
+      switch (clip.textAlign) {
+        case "left":
+          // Align left edge of text box to left edge of content
+          // Box center is 0. Left edge is -width/2.
+          anchorOffsetX = -effectiveWidth / 2;
+          break;
+        case "right":
+          // Align right edge of text box to right edge of content
+          // Box center is 0. Right edge is width/2.
+          anchorOffsetX = effectiveWidth / 2;
+          break;
+        case "center":
+        default:
+          anchorOffsetX = 0;
+          break;
+      }
+
       // Background (if set)
       if (clip.backgroundColor) {
-        const metrics = ctx.measureText(clip.content);
         const padding = 8;
-        const bgH = fontSize * 1.2;
-        const bgW = metrics.width + padding * 2;
+        // Use effective width for background too
+        const bgW = effectiveWidth + padding * 2;
+        const bgH = totalHeight + padding;
 
         ctx.fillStyle = clip.backgroundColor;
-        let rx = 0; // Now drawing relative to translated origin
-        if (clip.textAlign === "center") rx = -bgW / 2;
-        if (clip.textAlign === "right") rx = -bgW;
-
-        ctx.fillRect(rx, -bgH / 2, bgW, bgH);
+        // Center the background around origin
+        ctx.fillRect(-bgW / 2, -totalHeight / 2 - padding / 2, bgW, bgH);
         ctx.fillStyle = color;
       }
 
@@ -302,7 +391,13 @@ export class RenderEngine {
         ctx.shadowOffsetY = 2;
       }
 
-      ctx.fillText(clip.content, 0, 0); // Draw at origin (already translated)
+      // Draw each line, vertically centered around origin
+      const startY = -totalHeight / 2 + lineHeight / 2;
+      for (let i = 0; i < lines.length; i++) {
+        const lineY = startY + i * lineHeight;
+        ctx.fillText(lines[i], anchorOffsetX, lineY);
+      }
+
       ctx.restore();
     }
   }

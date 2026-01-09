@@ -94,8 +94,8 @@ Responsible for WYSIWYG playback and rendering.
     -   **`TextOverlay`**: Renders text elements over the video.
         -   **Positioning**: Lives outside the overflow-hidden video container but inside `PlayerWrapper` to allow controls to extend beyond video frame.
         -   **`DraggableTextItem`**: Interactive text element with drag, scale, rotate, and width resize capabilities.
-            -   **Position Dragging**: Uses animated position values to prevent jumping when keyframes exist.
-            -   **Width Measurement**: Measures inner text content via `scrollWidth` to avoid rotation transform issues with `getBoundingClientRect()`.
+            - **Position Dragging**: Auto-detects keyframes on the "position" property. If keyframes exist, dragging creates a new keyframe at the current time; otherwise, it updates the base clip position.
+            - **Width Measurement**: Measures inner text content via `scrollWidth` to avoid rotation transform issues with `getBoundingClientRect()`.
             -   **Movement Thresholds**: Requires >0.5% movement for position, >3px for width to prevent accidental changes from micro-movements.
             -   **Deferred Styling**: Width drag styling only applies after threshold is exceeded to prevent premature text wrapping.
 
@@ -122,12 +122,15 @@ Context-sensitive panel for editing selected clip properties.
 
 -   **`ContextPanel`**: Main container that switches between different property editors based on clip type.
     -   **Non-blocking Modal**: Uses `modal={false}` to allow interaction with timeline while panel is open.
+    -   **ScrollArea**: Wraps content in custom Shadcn `ScrollArea` for consistent scrolling experience.
     -   **Persistent State**: Panel remains open until explicitly closed, preserving editing context.
 -   **`VideoProperties`**: Controls for video clips (volume, playback rate, etc.).
     -   All edits tracked in history for undo/redo support.
 -   **`AudioProperties`**: Controls for audio clips (volume, fade in/out, etc.).
     -   All edits tracked in history for undo/redo support.
 -   **`TextProperties`**: Controls for text clips (content, font, color, alignment, etc.).
+    -   **Unified Transform UI**: Uses `KeyframeEditor` for Position, Scale, Rotation, and Opacity to match Video properties.
+    -   **Width Control**: Dedicated control for `maxWidth` (word wrapping).
     -   All edits tracked in history for undo/redo support.
 -   **`KeyframeEditor`**: Universal keyframe editor component.
     -   Displays current value of any animatable property.
@@ -135,9 +138,9 @@ Context-sensitive panel for editing selected clip properties.
     -   Lists all existing keyframes for the property with timecode display (MM:SS:FF format).
     -   **Click-to-Seek**: Clicking a keyframe row seeks the playhead to that position.
     -   **Active Keyframe Highlight**: Yellow border highlights the keyframe at current playhead.
-    -   **Smart Slider Display**: Shows slider when on keyframe or no keyframes exist; shows "Click a keyframe below to edit" message when keyframes exist but playhead is between them.
-    -   Integrated into all property panels for seamless animation workflow.
-    -   **Smart Editing**: Updates keyframes when present at playhead, otherwise updates base clip property.
+    - **Smart Slider Display**: Always shows slider/input controls. If playhead is not on a keyframe, editing a value automatically creates a new keyframe at that time.
+    - Integrated into all property panels for seamless animation workflow.
+    - **Smart Editing**: Updates keyframes when present at playhead, otherwise creates new keyframe (if project has keyframes) or updates base clip property.
     -   **Optimized History**: Uses `onMouseUp`/`onTouchEnd` for sliders, `onBlur` for inputs to prevent history flooding.
 
 ## 4. Key Workflows
@@ -454,6 +457,7 @@ Blob URLs (e.g., `blob:http://localhost:5173/abc-123`) are session-specific and 
 -   Watches: tracks, clips, mediaLibrary, fps, duration, resolution
 -   Ignores: currentTime, isPlaying, selection (transient state)
 -   `beforeunload` warning if unsaved changes exist
+-   **Data Recovery**: Includes a "Clear Data & Reset" mechanism in the error boundary to recover from corrupted localStorage states by selectively clearing project data.
 
 **6. Cloud Migration Strategy:**
 When migrating to Supabase (or other cloud storage):

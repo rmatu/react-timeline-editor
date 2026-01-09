@@ -69,8 +69,11 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
     if (existingKf) {
       // Update the keyframe value
       updateKeyframe(clip.id, existingKf.id, { value });
+    } else if (keyframes.length > 0 && isWithinClip) {
+      // Keyframes exist but not at current time - auto-add new keyframe
+      addKeyframeAtCurrentTime(clip.id, property, value);
     } else if (isWithinClip) {
-      // No keyframe at current time - update base clip property
+      // No keyframes at all for this property - update base clip property
       updateClip(clip.id, { [property]: value } as Partial<Clip>);
     }
   };
@@ -121,8 +124,8 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
         </div>
       )}
       
-      {/* Show slider when on keyframe OR when no keyframes exist */}
-      {(hasKeyframeAtCurrentTime || keyframes.length === 0) ? (
+      {/* Always show input if within clip bounds, allowing auto-keyframe creation */}
+      {isWithinClip ? (
         <ValueInput
           value={currentValue}
           meta={meta}
@@ -131,10 +134,8 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
           disabled={!isWithinClip}
         />
       ) : (
-        /* When keyframes exist but not on one, show message */
         <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-500 bg-zinc-900 rounded px-3 py-3 border border-dashed border-zinc-700">
-          <Diamond size={10} className="text-zinc-600" />
-          <span>Click a keyframe below to edit</span>
+          <span>Playhead outside clip range</span>
         </div>
       )}
 

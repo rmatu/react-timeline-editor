@@ -12,7 +12,7 @@ import { exportToMp4, exportWithWebCodecs, isWebCodecsSupported } from "@/utils/
 import { ExportSettingsModal, type ExportSettings } from "@/components/ExportSettingsModal";
 import { ContextPanel } from "@/components/properties/ContextPanel";
 import { useAutoSave, useProjectHydration } from "@/hooks";
-import { projectManager } from "@/services/persistence";
+import { projectManager, STORAGE_KEYS } from "@/services/persistence";
 
 function App() {
   const {
@@ -202,13 +202,34 @@ function App() {
           <h2 className="text-xl font-semibold text-white">Failed to load project</h2>
           <p className="text-zinc-400 max-w-md">
             There was an error loading your project. Please try refreshing the page.
+            If the error persists, you may need to clear your local data.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
-          >
-            Refresh Page
-          </button>
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+            >
+              Refresh Page
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm("This will delete all local projects. Are you sure?")) {
+                  // Clear project list and data
+                  localStorage.removeItem(STORAGE_KEYS.PROJECT_LIST);
+                  // Clear all project data keys
+                  Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith(STORAGE_KEYS.PROJECT_DATA_PREFIX)) {
+                      localStorage.removeItem(key);
+                    }
+                  });
+                  window.location.reload();
+                }
+              }}
+              className="rounded border border-red-600 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-600/10"
+            >
+              Clear Data & Reset
+            </button>
+          </div>
         </div>
       </div>
     );

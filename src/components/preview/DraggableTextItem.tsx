@@ -63,7 +63,7 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
   // Get animated properties at current time
   const animated = getAnimatedPropertiesAtTime(clip, currentTime);
 
-  // Base values (from keyframes or clip defaults)
+  // Start moving - use animated position to prevent jumping when keyframes exist
   const baseScale = animated.scale;
   const baseRotation = animated.rotation;
 
@@ -171,7 +171,7 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
       const container = containerRef.current;
       if (!container) return;
       
-      const { mode, startX, startY, startPosX, startPosY, startScale, startRotation, centerX, centerY } = dragStartRef.current;
+      const { mode, startX, startY, centerX, centerY } = dragStartRef.current;
 
       if (mode === "move") {
         // Use cached container dimensions instead of recalculating
@@ -216,11 +216,16 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
 
       if (mode === "move" && (Math.abs(dragDelta.x) > MIN_MOVE_THRESHOLD || Math.abs(dragDelta.y) > MIN_MOVE_THRESHOLD)) {
         saveToHistory();
-        const newX = Math.max(0, Math.min(100, startPosX + dragDelta.x));
-        const newY = Math.max(0, Math.min(100, startPosY + dragDelta.y));
+        // Allow free positioning - no clamping to 0-100% so text can reach edges
+        const newX = startPosX + dragDelta.x;
+        const newY = startPosY + dragDelta.y;
 
         // Position is always stored on clip directly (not animated via keyframes typically)
-        updateClip(clip.id, { position: { x: newX, y: newY } });
+        if (hasKeyframesFor("position")) {
+          useTimelineStore.getState().addKeyframeAtCurrentTime(clip.id, "position", { x: newX, y: newY });
+        } else {
+          updateClip(clip.id, { position: { x: newX, y: newY } });
+        }
       } else if (mode === "scale" && dragDelta.scale !== 0) {
         saveToHistory();
         const newScale = Math.max(0.1, Math.min(5, startScale * (1 + dragDelta.scale)));
@@ -307,12 +312,22 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
           textAlign: clip.textAlign,
           padding: clip.backgroundColor ? "4px 8px" : 0,
           borderRadius: clip.backgroundColor ? 4 : 0,
-          // Only apply width drag styling after significant movement (>3px) to avoid premature wrapping
+          // Text width constraint priority:
+          // 1. During width drag - use drag delta
+          // 2. Explicit clip.maxWidth set by user
+          // 3. Fall back to 90% of container width (for narrow aspect ratios)
           maxWidth: dragMode === "width" && Math.abs(dragDelta.width) > 3
             ? `${Math.max(50, dragStartRef.current.startWidth + dragDelta.width)}px`
-            : clip.maxWidth ? `${clip.maxWidth}px` : undefined,
-          whiteSpace: clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3) ? "normal" : "nowrap",
-          wordBreak: clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3) ? "break-word" : undefined,
+            : clip.maxWidth 
+              ? `${clip.maxWidth}px` 
+              : undefined,
+          // Word wrap only if we have a constraint (drag or specific maxWidth)
+          whiteSpace: (clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3)) 
+            ? "normal" 
+            : "nowrap",
+          wordBreak: (clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3)) 
+            ? "break-word" 
+            : undefined,
           textShadow: !clip.backgroundColor ? "0 2px 4px rgba(0,0,0,0.5)" : "none",
         }}
       >

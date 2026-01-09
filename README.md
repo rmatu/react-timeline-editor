@@ -10,7 +10,9 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
 - **Keyframe Animation** - Full animation system with interpolation, easing functions, and timeline visualization
   - Animate opacity, scale, rotation, position, volume, color, font size, and more
+  - **Unified Editor**: Consistent UI across all clip types (video, text, audio) for keyframe management
   - Visual keyframe markers on timeline with drag-to-reposition support
+  - **Auto-Keyframing**: Automatically creates keyframes when you edit a property or drag an element in the preview
   - Multiple easing functions (linear, ease-in, ease-out, ease-in-out, custom cubic-bezier)
   - Real-time preview and WYSIWYG export with animated properties
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
@@ -29,6 +31,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 -   **Properties Panel** - Non-blocking clip property editor with comprehensive controls
   - Edit video, audio, and text properties while timeline remains interactive
   - Context-sensitive UI adapts to selected clip type
+  - **ScrollArea**: Custom styled scrollbars for consistent cross-browser experience
   - All edits support undo/redo with optimized history tracking
 -   **Track Management** - Reorder, lock, mute, visibility toggle, and inline renaming
 - **Keyboard Shortcuts** - Full keyboard navigation and editing support
@@ -741,6 +744,14 @@ bun run tsc --noEmit
 ## License
 
 MIT
+
+## Troubleshooting
+  
+### "Failed to load project" Error
+If your browser's local storage data becomes corrupted or incompatible after an update, you may see an error screen. We've included a **"Clear Data & Reset"** button on this screen that will:
+1. Clear the specific local storage keys for this application.
+2. Reload the page to provide a fresh start.
+3. This is a safe operation that only affects this application's local data.
 
 ## Credits
 
