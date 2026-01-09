@@ -72,6 +72,59 @@ export class LocalStorageAdapter implements PersistenceAdapter {
 
   // ==================== Private Helpers ====================
 
+  /**
+   * Migrate stored project list from older schema versions to current.
+   * Returns the migrated data or null if migration is not possible.
+   */
+  private migrateProjectList(
+    data: Record<string, unknown>
+  ): StoredProjectList | null {
+    const storedVersion = typeof data.version === "number" ? data.version : 0;
+    const currentVersion = STORAGE_KEYS.SCHEMA_VERSION;
+
+    // If versions match, no migration needed - validation will handle it
+    if (storedVersion === currentVersion) {
+      return null;
+    }
+
+    console.info(
+      `Migrating project list from schema version ${storedVersion} to ${currentVersion}`
+    );
+
+    // Create a mutable copy for migration
+    const migrated = { ...data };
+
+    // Migration v0 -> v1: Add missing fields with defaults
+    if (storedVersion < 1) {
+      // Ensure projects array exists
+      if (!Array.isArray(migrated.projects)) {
+        migrated.projects = [];
+      }
+      // Ensure activeProjectId exists
+      if (migrated.activeProjectId === undefined) {
+        migrated.activeProjectId = null;
+      }
+    }
+
+    // Future migrations would go here:
+    // if (storedVersion < 2) { ... }
+
+    // Update version to current
+    migrated.version = currentVersion;
+
+    // Validate the migrated data
+    const result = safeValidateProjectList(migrated);
+    if (result.success) {
+      // Save migrated data back to storage
+      localStorage.setItem(STORAGE_KEYS.PROJECT_LIST, JSON.stringify(result.data));
+      console.info("Project list migration completed successfully");
+      return result.data;
+    }
+
+    console.warn("Migration produced invalid data, falling back to empty list");
+    return null;
+  }
+
   private getProjectList(): StoredProjectList {
     const raw = localStorage.getItem(STORAGE_KEYS.PROJECT_LIST);
     if (!raw) {
@@ -81,10 +134,40 @@ export class LocalStorageAdapter implements PersistenceAdapter {
         activeProjectId: null,
       };
     }
-    const result = safeValidateProjectList(JSON.parse(raw));
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.warn("Failed to parse project list JSON, resetting");
+      return {
+        version: STORAGE_KEYS.SCHEMA_VERSION,
+        projects: [],
+        activeProjectId: null,
+      };
+    }
+
+    // Check if migration is needed
+    const storedVersion = typeof parsed.version === "number" ? parsed.version : 0;
+    if (storedVersion !== STORAGE_KEYS.SCHEMA_VERSION) {
+      const migrated = this.migrateProjectList(parsed);
+      if (migrated) {
+        return migrated;
+      }
+      // Migration failed, return empty list
+      return {
+        version: STORAGE_KEYS.SCHEMA_VERSION,
+        projects: [],
+        activeProjectId: null,
+      };
+    }
+
+    // Validate current version data
+    const result = safeValidateProjectList(parsed);
     if (result.success) {
       return result.data;
     }
+
     // If validation fails, return empty list (corrupted data)
     console.warn("Corrupted project list in localStorage, resetting");
     return {

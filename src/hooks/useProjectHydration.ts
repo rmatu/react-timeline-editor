@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useTimelineStore, type MediaItem } from "@/stores/timelineStore";
 import { projectManager, mediaStorage, type Project } from "@/services/persistence";
 import type { Clip } from "@/schemas";
@@ -41,14 +41,35 @@ export function useProjectHydration(
   const [error, setError] = useState<Error | null>(null);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
 
+  // Track blob URLs created during hydration for cleanup
+  const createdBlobUrlsRef = useRef<Set<string>>(new Set());
+
   const loadTimeline = useTimelineStore((s) => s.loadTimeline);
   const setDuration = useTimelineStore((s) => s.setDuration);
   const setFps = useTimelineStore((s) => s.setFps);
   const setResolution = useTimelineStore((s) => s.setResolution);
 
+  /**
+   * Revoke all tracked blob URLs to prevent memory leaks.
+   * Called when switching projects or unmounting.
+   */
+  const cleanupBlobUrls = useCallback(() => {
+    for (const url of createdBlobUrlsRef.current) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // Ignore errors from already-revoked URLs
+      }
+    }
+    createdBlobUrlsRef.current.clear();
+  }, []);
+
   const hydrateFromProject = useCallback(
     async (project: Project) => {
       const { data } = project;
+
+      // Clean up blob URLs from previous project before creating new ones
+      cleanupBlobUrls();
 
       // Restore blob URLs from IndexedDB for media items with storageId
       const restoredMediaLibrary: MediaItem[] = [];
@@ -61,6 +82,16 @@ export function useProjectHydration(
             if (stored) {
               // Map old URL to new blob URL (for updating clips)
               urlMapping.set(item.url, stored.url);
+              // Track the new blob URL for cleanup
+              createdBlobUrlsRef.current.add(stored.url);
+              // Revoke old blob URL if it exists (from previous session)
+              if (item.url.startsWith("blob:")) {
+                try {
+                  URL.revokeObjectURL(item.url);
+                } catch {
+                  // Ignore - URL may already be invalid
+                }
+              }
               restoredMediaLibrary.push({
                 ...item,
                 url: stored.url,
@@ -96,7 +127,7 @@ export function useProjectHydration(
 
       setCurrentProject(project);
     },
-    [loadTimeline, setDuration, setFps, setResolution]
+    [loadTimeline, setDuration, setFps, setResolution, cleanupBlobUrls]
   );
 
   const loadProject = useCallback(
@@ -215,8 +246,10 @@ export function useProjectHydration(
 
     return () => {
       mounted = false;
+      // Clean up blob URLs when component unmounts
+      cleanupBlobUrls();
     };
-  }, [hydrateFromProject, skipDefaultCreation]);
+  }, [hydrateFromProject, skipDefaultCreation, cleanupBlobUrls]);
 
   return {
     isLoading,
