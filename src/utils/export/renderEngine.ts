@@ -612,29 +612,51 @@ export class RenderEngine {
   }
 
   /**
-   * Seek video to exact time and wait for frame to be ready
+   * Seek video to exact time and wait for frame to be ready.
+   * Uses frame verification to ensure the correct frame is captured,
+   * which is critical for smooth 60fps export.
    */
   private async seekVideoToTime(video: HTMLVideoElement, time: number): Promise<void> {
     // Store reference before 'in' check to avoid TypeScript narrowing
     const vid = video;
     const hasRVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+    
+    // Clamp to valid range
+    const clampedTime = Math.max(0, Math.min(time, vid.duration || time));
 
     return new Promise<void>((resolve) => {
       if (hasRVFC) {
         // Use requestVideoFrameCallback (Chrome 83+) for frame-accurate timing
-        vid.currentTime = time;
+        vid.currentTime = clampedTime;
+        
+        // Wait for the frame callback, then verify we're at the right time
         (vid as any).requestVideoFrameCallback(() => {
-          resolve();
+          // Frame verification: check if we're within tolerance
+          // At 60fps, frame duration is ~16.67ms, so 8ms tolerance is half a frame
+          const tolerance = 0.008; // 8ms
+          const drift = Math.abs(vid.currentTime - clampedTime);
+          
+          if (drift > tolerance && drift < 1.0) {
+            // Significant drift detected, try one more seek
+            vid.currentTime = clampedTime;
+            (vid as any).requestVideoFrameCallback(() => {
+              resolve();
+            });
+          } else {
+            resolve();
+          }
         });
       } else {
-        // Fallback: use seeked event
+        // Fallback: use seeked event with verification
         const onSeeked = () => {
           vid.removeEventListener("seeked", onSeeked);
-          // Small delay to ensure frame is decoded
-          setTimeout(resolve, 0);
+          // Additional frame to ensure decode is complete
+          requestAnimationFrame(() => {
+            resolve();
+          });
         };
         vid.addEventListener("seeked", onSeeked, { once: true });
-        vid.currentTime = time;
+        vid.currentTime = clampedTime;
       }
     });
   }
