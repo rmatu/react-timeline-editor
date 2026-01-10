@@ -4,6 +4,7 @@ import { TextOverlay } from "./TextOverlay";
 import { ImageOverlay } from "./ImageOverlay";
 import { PlayerWrapper } from "./PlayerWrapper";
 import { DraggableVideoLayer } from "./DraggableVideoLayer";
+import { BlurredVideoBackground } from "./BlurredVideoBackground";
 import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
@@ -205,35 +206,12 @@ export function VideoPreview({
 
             {/* Background Blur Layer */}
             {canvasBackground.type === "blur" && activeVideoClip && (
-              <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
-                {/* 
-                   We duplicate the active video logic here for the blur background. 
-                   We need to ensure it syncs. Since <AudioLayer> drives the "real" audio, 
-                   this video element is just for display.
-                   We rely on the main video rendering to drive the visual? 
-                   No, we need to render the video frame here too.
-                   We can just render a <video> that syncs to currentTime.
-                */}
-                <video
-                    src={activeVideoClip.sourceUrl}
-                    className="w-full h-full object-cover filter blur-xl scale-110 opacity-50"
-                    style={{ 
-                        filter: `blur(${Math.max(0, canvasBackground.blurAmount ?? 0) * 0.5}px)` 
-                    }}
-                    muted
-                    ref={(el) => {
-                        if (el) {
-                            // Simple sync - might jitter but acceptable for background
-                            if (Math.abs(el.currentTime - (currentTime - activeVideoClip.startTime + activeVideoClip.sourceStartTime)) > 0.3) {
-                                el.currentTime = Math.max(0, currentTime - activeVideoClip.startTime + activeVideoClip.sourceStartTime);
-                            }
-                            if (isPlaying && el.paused) el.play().catch(() => {});
-                            if (!isPlaying && !el.paused) el.pause();
-                            el.playbackRate = activeVideoClip.playbackRate || 1;
-                        }
-                    }}
-                />
-              </div>
+              <BlurredVideoBackground 
+                clip={activeVideoClip}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                blurAmount={canvasBackground.blurAmount ?? 0}
+              />
             )}
 
             {/* Render all audio clips AND video clip audio */}
