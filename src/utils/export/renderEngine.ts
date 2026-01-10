@@ -10,6 +10,12 @@ import type { Clip, Track, VideoClip, TextClip, StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { parseGIF, decompressFrames } from "gifuct-js";
 
+// Sticker size constraints (matches preview CSS max-w-[300px] max-h-[300px])
+// Preview uses 300px max in a ~1000px reference container = 30% of container
+// Scaled proportionally to export dimensions for WYSIWYG output
+const STICKER_REFERENCE_SIZE = 300;
+const STICKER_REFERENCE_CONTAINER = 1000;
+
 // GIF frame data for export
 interface GifFrameData {
   frames: ImageData[];
@@ -314,6 +320,12 @@ export class RenderEngine {
   private renderStickerLayer(time: number): void {
     const stickerClips = this.getActiveClips<StickerClip>("sticker", time);
 
+    // Calculate max sticker dimension proportional to export resolution
+    // This matches preview's max-w-[300px] max-h-[300px] constraint scaled to canvas
+    const maxStickerDimension =
+      (STICKER_REFERENCE_SIZE / STICKER_REFERENCE_CONTAINER) *
+      Math.min(this.width, this.height);
+
     for (const clip of stickerClips) {
       // Get animated properties for keyframe animations
       const animated = getAnimatedPropertiesAtTime(clip, time);
@@ -333,6 +345,15 @@ export class RenderEngine {
       // Check if this is an animated GIF with extracted frames
       const gifData = this.resources!.gifFrames.get(clip.id);
       if (gifData && clip.isAnimated) {
+        // Calculate constrained dimensions for GIF (matching preview max-w/max-h)
+        let w = gifData.width;
+        let h = gifData.height;
+        if (w > maxStickerDimension || h > maxStickerDimension) {
+          const constrainScale = Math.min(maxStickerDimension / w, maxStickerDimension / h);
+          w *= constrainScale;
+          h *= constrainScale;
+        }
+
         // Calculate which frame to show based on clip-relative time
         const clipTimeMs = (time - clip.startTime) * 1000;
         const loopTime = clipTimeMs >= 0 ? clipTimeMs % gifData.totalDuration : 0;
@@ -348,7 +369,7 @@ export class RenderEngine {
           }
         }
 
-        // Draw the GIF frame
+        // Draw the GIF frame at constrained dimensions
         const frameData = gifData.frames[frameIndex];
         if (frameData) {
           // Create a temp canvas to convert ImageData to drawable image
@@ -358,14 +379,21 @@ export class RenderEngine {
           const tempCtx = tempCanvas.getContext("2d");
           if (tempCtx) {
             tempCtx.putImageData(frameData, 0, 0);
-            ctx.drawImage(tempCanvas, -gifData.width / 2, -gifData.height / 2);
+            ctx.drawImage(tempCanvas, -w / 2, -h / 2, w, h);
           }
         }
       } else {
-        // Static image
+        // Static image with constrained dimensions (matching preview max-w/max-h)
         const img = this.resources!.stickerImages.get(clip.id);
         if (img) {
-          ctx.drawImage(img, -img.width / 2, -img.height / 2);
+          let w = img.width;
+          let h = img.height;
+          if (w > maxStickerDimension || h > maxStickerDimension) {
+            const constrainScale = Math.min(maxStickerDimension / w, maxStickerDimension / h);
+            w *= constrainScale;
+            h *= constrainScale;
+          }
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
         }
       }
 
