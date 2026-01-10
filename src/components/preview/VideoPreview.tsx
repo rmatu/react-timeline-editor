@@ -127,12 +127,6 @@ export function VideoPreview({
     <PlayerWrapper
       resolution={resolution}
       className={className}
-      onClick={(e) => {
-        // If clicking the empty background (PlayerWrapper container), select background
-        if (e.target === e.currentTarget) {
-          selectBackground();
-        }
-      }}
     >
       {({ playerRef }) => {
         // Background Styles

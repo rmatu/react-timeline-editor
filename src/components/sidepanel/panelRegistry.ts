@@ -1,15 +1,26 @@
 import React from 'react';
-import { Film, Subtitles, type LucideIcon } from 'lucide-react';
-import { MediaLibraryPanel, SRTImportPanel } from './panels';
+import { Film, Subtitles, FolderOpen, type LucideIcon } from 'lucide-react';
+import { MediaLibraryPanel, SRTImportPanel, ProjectsPanel } from './panels';
 
 export interface SidepanelConfig {
   id: string;
   icon: LucideIcon;
   label: string;
-  component: React.FC;
+  component: React.FC<any>;
+  /** Whether this panel requires project context props */
+  requiresProjectContext?: boolean;
 }
 
 export const panelRegistry: SidepanelConfig[] = [
+  {
+    id: 'projects',
+    icon: FolderOpen,
+    label: 'Projects',
+    component: ProjectsPanel,
+    // Note: ProjectsPanel requires props from parent (currentProject, etc.)
+    // These are injected by the Sidepanel component
+    requiresProjectContext: true,
+  },
   {
     id: 'media-library',
     icon: Film,

@@ -56,6 +56,9 @@ export interface CanvasBackground {
 // Enable Immer support for Map and Set
 enableMapSet();
 
+// Tool modes for timeline interaction
+export type TimelineToolMode = "select" | "hand";
+
 interface TimelineState {
   // Timeline configuration
   fps: number;
@@ -67,6 +70,9 @@ interface TimelineState {
   zoomLevel: number;
   scrollX: number;
   scrollY: number;
+
+  // Tool mode
+  toolMode: TimelineToolMode;
 
   // Playback state
   currentTime: number;
@@ -80,6 +86,9 @@ interface TimelineState {
   selectedClipIds: string[];
   selectedTrackId: string | null;
   isBackgroundSelected: boolean;
+
+  // Clipboard state
+  clipboardClips: Clip[];
 
   // Interaction state
   isDragging: boolean;
@@ -106,6 +115,9 @@ interface TimelineActions {
   setScroll: (x: number, y: number) => void;
   scrollBy: (dx: number, dy: number) => void;
 
+  // Tool mode
+  setToolMode: (mode: TimelineToolMode) => void;
+
   // Playback actions
   setCurrentTime: (time: number) => void;
   togglePlayback: () => void;
@@ -117,10 +129,16 @@ interface TimelineActions {
   // Selection actions
   selectClip: (clipId: string, multi?: boolean) => void;
   selectClips: (clipIds: string[]) => void;
+  selectAll: () => void;
   deselectAll: () => void;
   selectTrack: (trackId: string | null) => void;
   selectBackground: () => void;
   setCanvasBackground: (background: Partial<CanvasBackground>) => void;
+
+  // Clipboard actions
+  copySelectedClips: () => void;
+  pasteClips: () => void;
+  duplicateSelectedClips: () => void;
 
   // Interaction state
   setDragging: (isDragging: boolean, clipId?: string) => void;
@@ -194,6 +212,8 @@ export const useTimelineStore = create<TimelineStore>()(
       scrollX: 0,
       scrollY: 0,
 
+      toolMode: "select" as TimelineToolMode,
+
       currentTime: 0,
       isPlaying: false,
       playbackRate: 1,
@@ -204,6 +224,8 @@ export const useTimelineStore = create<TimelineStore>()(
       selectedClipIds: [],
       selectedTrackId: null,
       isBackgroundSelected: false,
+
+      clipboardClips: [],
 
       isDragging: false,
       isTrimming: false,
@@ -244,6 +266,12 @@ export const useTimelineStore = create<TimelineStore>()(
         set((state) => {
           state.scrollX = Math.max(0, state.scrollX + dx);
           state.scrollY = Math.max(0, state.scrollY + dy);
+        }),
+
+      // Tool mode
+      setToolMode: (mode) =>
+        set((state) => {
+          state.toolMode = mode;
         }),
 
       // Playback actions
@@ -305,6 +333,12 @@ export const useTimelineStore = create<TimelineStore>()(
           state.isBackgroundSelected = false;
         }),
 
+      selectAll: () =>
+        set((state) => {
+          state.selectedClipIds = Array.from(state.clips.keys());
+          state.isBackgroundSelected = false;
+        }),
+
       deselectAll: () =>
         set((state) => {
           state.selectedClipIds = [];
@@ -324,6 +358,86 @@ export const useTimelineStore = create<TimelineStore>()(
           state.selectedTrackId = null;
           state.isBackgroundSelected = true;
         }),
+
+      // Clipboard actions
+      copySelectedClips: () =>
+        set((state) => {
+          const selectedClips = state.selectedClipIds
+            .map((id) => state.clips.get(id))
+            .filter((clip): clip is Clip => clip !== undefined);
+
+          // Deep clone the clips for clipboard, including keyframes and nested objects
+          state.clipboardClips = selectedClips.map((clip) => {
+            const clone = { ...clip };
+
+            // Deep clone keyframes if they exist
+            if (clone.keyframes) {
+              clone.keyframes = clone.keyframes.map((kf) => ({ ...kf }));
+            }
+
+            // Deep clone position if it exists (Video, Text, Sticker)
+            if ("position" in clone && clone.position) {
+              (clone as any).position = { ...clone.position };
+            }
+
+            return clone;
+          });
+        }),
+
+      pasteClips: () => {
+        const state = get();
+        if (state.clipboardClips.length === 0) return;
+
+        // Save to history before pasting
+        get().saveToHistory();
+
+        set((draft) => {
+          const currentTime = draft.currentTime;
+
+          // Find the earliest start time among clipboard clips
+          const earliestStart = Math.min(...draft.clipboardClips.map((c) => c.startTime));
+
+          // Paste each clip with new IDs and offset to current time
+          for (const clipTemplate of draft.clipboardClips) {
+            const newClip: Clip = {
+              ...clipTemplate,
+              id: crypto.randomUUID(),
+              // Offset relative to the earliest clip, placing at current time
+              startTime: currentTime + (clipTemplate.startTime - earliestStart),
+            };
+            draft.clips.set(newClip.id, newClip);
+          }
+        });
+      },
+
+      duplicateSelectedClips: () => {
+        const state = get();
+        if (state.selectedClipIds.length === 0) return;
+
+        // Save to history before duplicating
+        get().saveToHistory();
+
+        set((draft) => {
+          const newClipIds: string[] = [];
+
+          for (const clipId of draft.selectedClipIds) {
+            const originalClip = draft.clips.get(clipId);
+            if (!originalClip) continue;
+
+            // Create duplicate with new ID, offset by 0.5 seconds
+            const newClip: Clip = {
+              ...originalClip,
+              id: crypto.randomUUID(),
+              startTime: originalClip.startTime + originalClip.duration + 0.1,
+            };
+            draft.clips.set(newClip.id, newClip);
+            newClipIds.push(newClip.id);
+          }
+
+          // Select the new clips
+          draft.selectedClipIds = newClipIds;
+        });
+      },
 
       setCanvasBackground: (background) =>
         set((state) => {
@@ -599,8 +713,20 @@ export const useTimelineStore = create<TimelineStore>()(
           if (state.historyIndex >= 0 && state.history.length > 0) {
             const entry = state.history[state.historyIndex];
             if (entry) {
-              state.tracks = new Map(entry.tracks);
-              state.clips = new Map(entry.clips);
+              state.tracks = new Map(
+                Array.from(entry.tracks.entries()).map(([id, track]) => [id, { ...track }])
+              );
+              state.clips = new Map(
+                Array.from(entry.clips.entries()).map(([id, clip]) => [
+                  id,
+                  {
+                    ...clip,
+                    keyframes: clip.keyframes?.map((kf) => ({ ...kf })),
+                    // Use type casting to access position safely, effectively checking for existence
+                    position: "position" in clip && (clip as any).position ? { ...(clip as any).position } : undefined,
+                  } as Clip
+                ])
+              );
             }
             // Move back in history for next undo
             if (state.historyIndex > 0) {
@@ -614,8 +740,20 @@ export const useTimelineStore = create<TimelineStore>()(
           if (state.historyIndex < state.history.length - 1) {
             state.historyIndex++;
             const entry = state.history[state.historyIndex];
-            state.tracks = new Map(entry.tracks);
-            state.clips = new Map(entry.clips);
+            state.tracks = new Map(
+              Array.from(entry.tracks.entries()).map(([id, track]) => [id, { ...track }])
+            );
+            state.clips = new Map(
+              Array.from(entry.clips.entries()).map(([id, clip]) => [
+                id,
+                {
+                  ...clip,
+                  keyframes: clip.keyframes?.map((kf) => ({ ...kf })),
+                  // Use type casting to access position safely, effectively checking for existence
+                  position: "position" in clip && (clip as any).position ? { ...(clip as any).position } : undefined,
+                } as Clip
+              ])
+            );
           }
         }),
 

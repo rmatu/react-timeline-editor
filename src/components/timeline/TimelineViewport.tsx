@@ -1,10 +1,11 @@
-import { forwardRef, useState, useCallback, type ReactNode } from "react";
+import { forwardRef, useState, useCallback, useRef, useImperativeHandle, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, StickerClip } from "@/schemas";
 import { parseMediaDragData } from "@/components/sidepanel/panels/MediaLibraryPanel";
 import { pixelsToTime } from "@/utils/time";
+import { MarqueeSelection } from "./MarqueeSelection";
 
 interface TimelineViewportProps {
   children: ReactNode;
@@ -33,8 +34,14 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
   ) {
     void _contentHeight; // Content height managed by children
 
+    const localRef = useRef<HTMLDivElement>(null);
+    
+    // Expose the local ref to the parent via the forwarded ref
+    useImperativeHandle(ref, () => localRef.current as HTMLDivElement);
+
     const [isDragOver, setIsDragOver] = useState(false);
     const { tracks, addTrack, addClip } = useTimelineStore();
+    const toolMode = useTimelineStore((s) => s.toolMode);
 
     // Handle drag over for media items from sidepanel
     // Note: getData() returns empty during dragover for security, so we check types instead
@@ -169,10 +176,11 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
 
     return (
       <div
-        ref={ref}
+        ref={localRef}
         className={cn(
           "timeline-viewport relative flex-1 overflow-hidden bg-zinc-900",
           isDragOver && "ring-2 ring-blue-500 ring-inset",
+          toolMode === "hand" && "cursor-grab active:cursor-grabbing",
           className
         )}
         onClick={onClick}
@@ -181,6 +189,14 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
         onDrop={handleDrop}
         style={{ touchAction: "none" }}
       >
+        {/* Marquee selection layer - must be before content to receive mouse events on empty space */}
+        <MarqueeSelection
+          scrollX={scrollX}
+          scrollY={scrollY}
+          zoomLevel={zoomLevel}
+          containerRef={localRef}
+        />
+
         {/* Content container with transform for virtual scrolling */}
         <div
           className="relative"

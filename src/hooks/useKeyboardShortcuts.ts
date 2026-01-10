@@ -16,6 +16,11 @@ interface UseKeyboardShortcutsOptions {
   onMerge?: () => void;
   onToggleSidepanel?: () => void;
   onSave?: () => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onDuplicate?: () => void;
+  onSelectTool?: () => void;
+  onHandTool?: () => void;
   disabled?: boolean;
 }
 
@@ -34,6 +39,11 @@ export function useKeyboardShortcuts({
   onMerge,
   onToggleSidepanel,
   onSave,
+  onCopy,
+  onPaste,
+  onDuplicate,
+  onSelectTool,
+  onHandTool,
   disabled = false,
 }: UseKeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
@@ -151,6 +161,41 @@ export function useKeyboardShortcuts({
         onToggleSidepanel?.();
         return;
       }
+
+      // Copy (Ctrl/Cmd + C)
+      if (key.toLowerCase() === "c" && ctrl && !shift) {
+        e.preventDefault();
+        onCopy?.();
+        return;
+      }
+
+      // Paste (Ctrl/Cmd + V)
+      if (key.toLowerCase() === "v" && ctrl && !shift) {
+        e.preventDefault();
+        onPaste?.();
+        return;
+      }
+
+      // Duplicate (Ctrl/Cmd + D)
+      if (key.toLowerCase() === "d" && ctrl && !shift) {
+        e.preventDefault();
+        onDuplicate?.();
+        return;
+      }
+
+      // Select tool (V without modifiers)
+      if (key.toLowerCase() === "v" && !ctrl && !shift) {
+        e.preventDefault();
+        onSelectTool?.();
+        return;
+      }
+
+      // Hand/Pan tool (H without modifiers)
+      if (key.toLowerCase() === "h" && !ctrl && !shift) {
+        e.preventDefault();
+        onHandTool?.();
+        return;
+      }
     },
     [
       disabled,
@@ -168,6 +213,11 @@ export function useKeyboardShortcuts({
       onMerge,
       onToggleSidepanel,
       onSave,
+      onCopy,
+      onPaste,
+      onDuplicate,
+      onSelectTool,
+      onHandTool,
     ]
   );
 

@@ -8,7 +8,9 @@ The application follows a **Uni-directional Data Flow** pattern driven by a cent
 
 -   **State Management**: `Zustand` (`src/stores/timelineStore.ts`).
     -   Serves as the **Single Source of Truth** for the entire application.
-    -   Manages `tracks`, `clips`, `currentTime`, `playbackState`, and `zoomLevel`.
+    -   Manages `tracks`, `clips`, `currentTime`, `playbackState`, `zoomLevel`, `toolMode`, and `clipboardClips`.
+    -   **Tool Mode**: `"select" | "hand"` - Controls interaction behavior (marquee selection vs pan).
+    -   **Clipboard**: Stores copied clips for paste/duplicate operations.
     -   Uses `immer` middleware for immutable state updates.
     -   Handles complex logic like `undo`/`redo` history stacks.
 
@@ -74,6 +76,10 @@ Extensible panel system for secondary tools.
 -   **Panels**:
     -   **`MediaLibraryPanel`**: File upload, drag & drop to timeline, thumbnail generation.
     -   **`SRTImportPanel`**: Parsers `.srt` files and creating text clips.
+    -   **`ProjectsPanel`**: Multi-project management interface.
+        -   List, create, rename, duplicate, and delete projects.
+        -   Switch between projects with unsaved changes confirmation.
+        -   Shows project metadata (creation date, last modified).
 
 ### Preview Engine (`src/components/preview`)
 Responsible for WYSIWYG playback and rendering.
@@ -82,6 +88,11 @@ Responsible for WYSIWYG playback and rendering.
     -   **Aspect Ratio Management**: Calculates optimal dimensions to strictly respect the selected resolution (e.g., 9:16) while fitting within the parent container.
     -   **Context Provider**: Exposes measurements and refs to children via render prop pattern.
     -   **Interaction Layer**: Handles background clicks for deselecting clips.
+    -   **Pan & Zoom Support**: Allows free navigation of the preview canvas.
+        -   **Pan**: Alt+drag or middle-click+drag to move the canvas.
+        -   **Zoom**: Ctrl/Cmd+scroll to zoom in/out (10% to 500%).
+        -   **Tool Mode Aware**: Background drag only pans when `toolMode === "hand"`.
+        -   **Reset**: Double-click or button to reset to centered view.
 
 -   **`VideoPreview`**: Main orchestrator.
     -   Uses `PlayerWrapper` to establish layout context.
@@ -110,6 +121,13 @@ Responsible for manipulation and editing.
     -   **`TimeRuler`**: Top horizontal axis displaying timecodes. Supports scroll-to-zoom.
     -   **`Playhead`**: Vertical red line indicating `currentTime`.
     -   **`DurationHandle`**: Draggable handle at the end of the timeline to manually adjust total duration. Dragging left "cuts" the timeline, trimming or removing clips that exceed the new duration.
+    -   **`ToolModeToolbar`**: Toggle buttons for Select (V) and Hand (H) tools.
+        -   **Select Mode**: Enables marquee selection, click-to-select clips.
+        -   **Hand Mode**: Enables drag-to-pan timeline.
+    -   **`MarqueeSelection`**: Rectangle selection overlay for bulk clip selection.
+        -   Only active in Select mode.
+        -   Shift+drag adds to existing selection.
+        -   Calculates clip intersection with selection rectangle.
     -   **`TrackList`**: Renders the vertical list of `Track` components.
         -   **`Track`**: Droppable zone for Dnd.
             -   **`Clip`**: Draggable/Resizable item.

@@ -8,6 +8,11 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Clip Display** - Filename labels (not full paths) and always-visible duration badges
 - **Clip Manipulation** - Drag to reposition, trim handles to adjust duration, drag timeline end handle to cut/extend timeline
 - **Split & Merge** - Cut clips at playhead, combine adjacent clips
+- **Tool Mode System** - CapCut-style tool switching for different interaction modes
+  - **Select Tool (V)**: Marquee selection for bulk clip selection, click to select individual clips
+  - **Hand Tool (H)**: Pan/scroll the timeline by dragging
+- **Clipboard Operations** - Copy, paste, and duplicate clips with keyboard shortcuts
+- **Marquee Selection** - Draw a rectangle to select multiple clips at once (in Select mode)
 - **Keyframe Animation** - Full animation system with interpolation, easing functions, and timeline visualization
   - Animate opacity, scale, rotation, position, volume, color, font size, and more
   - **Unified Editor**: Consistent UI across all clip types (video, text, audio) for keyframe management
@@ -24,10 +29,14 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Collision Detection** - Clips on the same track cannot overlap; auto-creates new track with visual feedback
 - **Gesture Support** - Pinch-to-zoom, scroll, and drag (touch + mouse)
 - **Video Preview** - Synchronized playback with smooth, stutter-free scrubbing
+  - **Pan & Zoom**: Navigate the preview canvas freely (Alt+drag to pan, Ctrl+scroll to zoom)
+  - **Reset View**: Double-click or button to recenter and reset zoom
+  - **Tool Mode Aware**: Panning respects the current tool mode (Hand mode enables drag-to-pan)
 - **Independent Audio** - Decoupled audio playback for background music and sound effects
 - **Infinite Timeline** - Automatically expands as you add content; manual control via drag handle
 -   **Resizable Interface** - Adjustable track height and sidebar width
 -   **Media Sidepanel** - Drag-and-drop media library and SRT subtitle import
+-   **Projects Panel** - Multi-project management with create, switch, rename, duplicate, and delete
 -   **Properties Panel** - Non-blocking clip property editor with comprehensive controls
   - Edit video, audio, and text properties while timeline remains interactive
   - Context-sensitive UI adapts to selected clip type
@@ -378,6 +387,8 @@ const {
   tracks,           // Map<string, Track>
   clips,            // Map<string, Clip>
   selectedClipIds,
+  toolMode,         // "select" | "hand"
+  clipboardClips,   // Copied clips for paste
 
   // Actions
   setCurrentTime,
@@ -397,12 +408,22 @@ const {
   splitClip,        // Split clip at time
   mergeClips,       // Merge adjacent clips
   selectClip,
+  selectClips,      // Select multiple clips
+  selectAll,        // Select all clips
   deselectAll,
   loadTimeline,
   exportTimeline,
   clearTimeline,
   undo,
   redo,
+
+  // Tool mode actions
+  setToolMode,      // Switch between "select" and "hand"
+
+  // Clipboard actions
+  copySelectedClips,     // Copy selected clips to clipboard
+  pasteClips,            // Paste clips at playhead
+  duplicateSelectedClips, // Duplicate selected clips in place
 
   // Keyframe actions
   addKeyframeAtCurrentTime,  // Add keyframe at playhead
@@ -601,6 +622,11 @@ const kfResult = KeyframeSchema.safeParse(keyframe);
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y` | Redo |
 | `Ctrl/Cmd + A` | Select all clips |
+| `Ctrl/Cmd + C` | Copy selected clips |
+| `Ctrl/Cmd + V` | Paste clips at playhead |
+| `Ctrl/Cmd + D` | Duplicate selected clips |
+| `V` | Switch to Select tool |
+| `H` | Switch to Hand tool |
 | `Escape` | Deselect all |
 | `+` / `=` | Zoom in |
 | `-` | Zoom out |
@@ -617,6 +643,9 @@ const kfResult = KeyframeSchema.safeParse(keyframe);
 | **Pinch** | Zoom in/out (touch) |
 | **Click on clip** | Select clip; seeks playhead to start only if not already within clip |
 | **Drag on clip** | Move clip |
+| **Drag on empty space (Select mode)** | Marquee selection rectangle |
+| **Drag on empty space (Hand mode)** | Pan timeline |
+| **Middle-click + Drag** | Pan timeline (any mode) |
 | **Drag trim handle** | Trim clip |
 | **Click on ruler** | Seek to position |
 | **Drag playhead** | Scrub timeline |
@@ -627,6 +656,9 @@ const kfResult = KeyframeSchema.safeParse(keyframe);
 | **Drag text corner handle** | Scale text element |
 | **Drag text rotation handle** | Rotate text element |
 | **Drag text edge handle** | Adjust text width |
+| **Alt + Drag (Preview)** | Pan preview canvas |
+| **Ctrl/Cmd + Scroll (Preview)** | Zoom preview canvas |
+| **Double-click (Preview)** | Reset preview pan/zoom |
 
 ## Constants
 

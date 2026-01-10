@@ -11,6 +11,7 @@ import { Track } from "./Track";
 import { TrackHeader } from "./TrackHeader";
 import { SnapGuide, snapGuideAtom, hideSnapGuide } from "./SnapGuide";
 import { NewTrackIndicator } from "./NewTrackIndicator";
+import { ToolModeToolbar } from "./ToolModeToolbar";
 import { useTimelineGestures } from "@/hooks/useTimelineGestures";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
@@ -118,6 +119,7 @@ export function Timeline({
     onRedo: () => useTimelineStore.getState().redo(),
     onZoomIn: () => setZoom(zoomLevel * 1.2),
     onZoomOut: () => setZoom(zoomLevel / 1.2),
+    onSelectAll: () => useTimelineStore.getState().selectAll(),
     onDeselectAll: () => useTimelineStore.getState().deselectAll(),
     onSplit: () => {
       const store = useTimelineStore.getState();
@@ -136,6 +138,24 @@ export function Timeline({
       }
     },
     onToggleSidepanel: () => useSidepanelStore.getState().toggle(),
+    onCopy: () => {
+      const store = useTimelineStore.getState();
+      if (store.selectedClipIds.length > 0) {
+        store.copySelectedClips();
+      }
+    },
+    onPaste: () => {
+      useTimelineStore.getState().pasteClips();
+    },
+    onDuplicate: () => {
+      useTimelineStore.getState().duplicateSelectedClips();
+    },
+    onSelectTool: () => {
+      useTimelineStore.getState().setToolMode("select");
+    },
+    onHandTool: () => {
+      useTimelineStore.getState().setToolMode("hand");
+    },
   });
 
   // Use ref to track current time for smooth animation without effect restarts
@@ -199,8 +219,13 @@ export function Timeline({
         className="flex flex-col border-r border-zinc-700 bg-zinc-800 relative"
         style={{ width: sidebarWidth, zIndex: Z_INDEX.TIMELINE.SIDEBAR }}
       >
-         {/* Sidebar Header (Top-Left Corner) */}
-         <div className="flex-shrink-0 border-b border-zinc-700" style={{ height: RULER_HEIGHT }} />
+         {/* Sidebar Header (Top-Left Corner) - Tool Mode */}
+         <div 
+           className="flex-shrink-0 border-b border-zinc-700 flex items-center justify-center px-2" 
+           style={{ height: RULER_HEIGHT }}
+         >
+           <ToolModeToolbar />
+         </div>
 
          {/* Sidebar Body (Track Headers) */}
          <div className="flex-1 overflow-hidden relative">
