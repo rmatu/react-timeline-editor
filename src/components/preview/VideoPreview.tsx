@@ -150,49 +150,9 @@ export function VideoPreview({
             onClick={(e) => {
               // Select background if clicking container background
               if (e.target === e.currentTarget) {
-                if (activeVideoClip) {
-                    // This case is tricky: if there is a video clip filling the screen, 
-                    // changing background won't be visible unless video is transparent or smaller.
-                    // But if they click the VIDEO, they probably want to select the VIDEO clip.
-                    // But if they click OFF the video (letterbox area), they want background.
-                    // The player container logic is: content is centered. 
-                    // BUT VideoPreview actually renders video elements inside. 
-                    
-                    // If e.target === e.currentTarget, it means they clicked the "black bars" or the container itself.
-                    // If video fills container, they can't click container.
-                    // But if video is small (transformed), they can click container.
-                    
-                    // Logic: If clicking container, and we have an active video clip, current logic selects it?
-                    // No. Original logic was:
-                    // if (activeVideoClip) selectClip(activeVideoClip.id)
-                    // This implies the container was acting as the click target FOR the video.
-                    // But now we want to distinguish "Background" vs "Content".
-                    
-                    // Let's keep it simple: clicking the "Container" selects the Background.
-                    // To select the video, they must click the VIDEO (DraggableVideoLayer).
-                    // BUT DraggableVideoLayer has 'pointer-events-auto'? Yes.
-                    
-                    // The original code had:
-                    // if (activeVideoClip) selectClip(...) else deselectAll()
-                    // This meant clicking ANYWHERE in the player selected the active video clip.
-                    // We must change this so that clicking the BACKGROUND selects the background.
-                    // But we still want easy selection of the video.
-                    
-                    // Compromise: 
-                    // If they click the container, we check if they clicked "on" the video content? 
-                    // Hard to know without hit testing.
-                    // 
-                    // Let's change behavior: 
-                    // Clicking container -> selectBackground().
-                    // To select video, they must click the video layer.
-                    // Since DraggableVideoLayer is rendered separately, check if it captures clicks.
-                    // DraggableVideoLayer usually handles its own clicks/drags.
-                    
-                    // So:
-                    selectBackground();
-                } else {
-                   selectBackground();
-                }
+                // Clicking the container (letterbox area) selects the background.
+                // Video content selection is handled by DraggableVideoLayer.
+                selectBackground();
               }
             }}
           >

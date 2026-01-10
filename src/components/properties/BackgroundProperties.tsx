@@ -164,9 +164,10 @@ export function BackgroundProperties() {
                   <span className="text-xs text-zinc-400">None</span>
               </button>
               
-              {PATTERNS.map((url, i) => (
+
+              {PATTERNS.map((url) => (
                 <button
-                  key={i}
+                  key={url}
                   onClick={() => handleImageChange(url)}
                   className={cn(
                     "relative aspect-square overflow-hidden rounded border border-transparent transition-all hover:scale-105",
