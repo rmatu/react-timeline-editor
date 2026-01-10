@@ -286,23 +286,21 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
       onMouseDown={handleMoveStart}
     >
       {/* Image content */}
-      <div className="max-w-[50vw] max-h-[50vh]">
-        {clip.isAnimated && gifDataUrl ? (
-          <img
-            src={gifDataUrl}
-            alt=""
-            className="max-w-full max-h-full object-contain pointer-events-none"
-            draggable={false}
-          />
-        ) : (
-          <img
-            src={clip.assetUrl}
-            alt=""
-            className="max-w-full max-h-full object-contain pointer-events-none"
-            draggable={false}
-          />
-        )}
-      </div>
+      {clip.isAnimated && gifDataUrl ? (
+        <img
+          src={gifDataUrl}
+          alt=""
+          className="object-contain pointer-events-none block max-w-[300px] max-h-[300px]"
+          draggable={false}
+        />
+      ) : (
+        <img
+          src={clip.assetUrl}
+          alt=""
+          className="object-contain pointer-events-none block max-w-[300px] max-h-[300px]"
+          draggable={false}
+        />
+      )}
 
       {/* Selection handles - only show when selected */}
       {isSelected && (

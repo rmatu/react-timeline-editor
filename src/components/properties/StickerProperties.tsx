@@ -17,7 +17,7 @@ export const StickerProperties = ({ clip }: StickerPropertiesProps) => {
       )}
 
       {/* Transform Section - using KeyframeEditor for all transform properties */}
-      <div className="border-t border-zinc-800 pt-4 mt-4">
+      <div className="">
         <h3 className="text-xs font-semibold text-zinc-300 mb-3">Transform</h3>
         <div className="space-y-4">
           <KeyframeEditor clip={clip} property="position" />

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Diamond, Trash2 } from "lucide-react";
+import { Diamond, Play, Trash2 } from "lucide-react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { Clip } from "@/schemas";
 import type { EasingType, KeyframeValue, PositionValue } from "@/schemas/keyframe.schema";
@@ -141,7 +141,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
 
       {/* Keyframe list */}
       {keyframes.length > 0 && (
-        <div className="mt-3 space-y-1.5 border-t border-zinc-800 pt-3">
+        <div className="mt-2 space-y-1 border-t border-zinc-800 pt-2">
           <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-600">
             <Diamond size={8} />
             <span>{keyframes.length} Keyframe{keyframes.length !== 1 ? "s" : ""}</span>
@@ -152,18 +152,26 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
               return (
                 <div
                   key={kf.id}
-                  onClick={() => {
-                    // Seek playhead to this keyframe's time (absolute time = clip start + keyframe time)
-                    const setCurrentTime = useTimelineStore.getState().setCurrentTime;
-                    setCurrentTime(clip.startTime + kf.time);
-                  }}
                   className={cn(
-                    "flex items-center gap-2 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors",
+                    "flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors",
                     isAtThisKeyframe
                       ? "bg-yellow-400/20 border border-yellow-400/50"
                       : "bg-zinc-900 hover:bg-zinc-800 border border-transparent"
                   )}
                 >
+                  {/* Go to timestamp button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const setCurrentTime = useTimelineStore.getState().setCurrentTime;
+                      setCurrentTime(clip.startTime + kf.time);
+                    }}
+                    className="p-1 rounded text-zinc-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
+                    title="Go to keyframe"
+                  >
+                    <Play size={12} className="fill-current" />
+                  </button>
+
                   {/* Timecode display */}
                   <input
                     type="text"
@@ -198,7 +206,7 @@ export function KeyframeEditor({ clip, property, label }: KeyframeEditorProps) {
                         easing: e.target.value as EasingType,
                       });
                     }}
-                    className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-1 text-xs text-zinc-300"
+                    className="w-32 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-1 text-xs text-zinc-300"
                   >
                     <option value="linear">Linear</option>
                     <option value="ease-in">Ease In</option>
