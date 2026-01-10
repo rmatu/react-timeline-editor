@@ -1,5 +1,5 @@
 import type { Track, Clip } from "@/schemas";
-import type { MediaItem } from "@/stores/timelineStore";
+import type { MediaItem, CanvasBackground } from "@/stores/timelineStore";
 
 /**
  * Project metadata - stored separately from timeline data
@@ -24,6 +24,7 @@ export interface ProjectData {
   tracks: Track[];
   clips: Clip[];
   mediaLibrary: MediaItem[];
+  canvasBackground: CanvasBackground;
 }
 
 /**

@@ -33,6 +33,13 @@ export const MediaItemSchema = z.object({
   isAnimated: z.boolean().optional(),
 });
 
+export const CanvasBackgroundSchema = z.object({
+  type: z.enum(["color", "image", "blur"]),
+  color: z.string().default("#000000"),
+  url: z.string().optional(),
+  blurAmount: z.number().min(0).max(100).optional(),
+});
+
 /**
  * Schema for project metadata
  */
@@ -54,6 +61,7 @@ export const ProjectDataSchema = z.object({
   tracks: z.array(TrackSchema).default([]),
   clips: z.array(ClipSchema).default([]),
   mediaLibrary: z.array(MediaItemSchema).default([]),
+  canvasBackground: CanvasBackgroundSchema.default({ type: "color", color: "#000000" }),
 });
 
 /**

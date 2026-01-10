@@ -4,6 +4,7 @@ import { TextOverlay } from "./TextOverlay";
 import { ImageOverlay } from "./ImageOverlay";
 import { PlayerWrapper } from "./PlayerWrapper";
 import { DraggableVideoLayer } from "./DraggableVideoLayer";
+import { BlurredVideoBackground } from "./BlurredVideoBackground";
 import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
@@ -87,8 +88,9 @@ export function VideoPreview({
   const clips = useTimelineStore((state) => state.clips);
   const tracks = useTimelineStore((state) => state.tracks);
   const resolution = useTimelineStore((state) => state.resolution);
-  const selectClip = useTimelineStore((state) => state.selectClip);
-  const deselectAll = useTimelineStore((state) => state.deselectAll);
+  const canvasBackground = useTimelineStore((state) => state.canvasBackground);
+
+  const selectBackground = useTimelineStore((state) => state.selectBackground);
 
   // Get all video clips sorted by track order (top track = lower order = higher priority)
   const videoClips = useMemo(() => {
@@ -126,29 +128,52 @@ export function VideoPreview({
       resolution={resolution}
       className={className}
       onClick={(e) => {
-        // Deselect if clicking the empty background (PlayerWrapper container)
+        // If clicking the empty background (PlayerWrapper container), select background
         if (e.target === e.currentTarget) {
-          deselectAll();
+          selectBackground();
         }
       }}
     >
-      {({ playerRef }) => (
+      {({ playerRef }) => {
+        // Background Styles
+        const backgroundStyle: React.CSSProperties = {
+            backgroundColor: canvasBackground.type === "color" ? canvasBackground.color : "black",
+        };
+
+        return (
         <>
-          {/* Player container - has overflow:hidden for video content only */}
+          {/* Player container */}
           <div
             ref={playerRef}
-            className="relative w-full h-full overflow-hidden rounded-lg bg-black shadow-2xl cursor-pointer"
+            className="relative w-full h-full overflow-hidden shadow-2xl cursor-pointer"
+            style={backgroundStyle}
             onClick={(e) => {
-              // Only select if clicking directly on container (not on text overlay)
+              // Select background if clicking container background
               if (e.target === e.currentTarget) {
-                if (activeVideoClip) {
-                  selectClip(activeVideoClip.id, e.shiftKey);
-                } else {
-                  deselectAll();
-                }
+                // Clicking the container (letterbox area) selects the background.
+                // Video content selection is handled by DraggableVideoLayer.
+                selectBackground();
               }
             }}
           >
+            {/* Background Image Layer */}
+            {canvasBackground.type === "image" && canvasBackground.url && (
+                <div 
+                    className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
+                    style={{ backgroundImage: `url(${canvasBackground.url})` }}
+                />
+            )}
+
+            {/* Background Blur Layer */}
+            {canvasBackground.type === "blur" && activeVideoClip && (
+              <BlurredVideoBackground 
+                clip={activeVideoClip}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                blurAmount={canvasBackground.blurAmount ?? 0}
+              />
+            )}
+
             {/* Render all audio clips AND video clip audio */}
             {Array.from(clips.values())
               .filter((c): c is AudioClip | VideoClip => c.type === "audio" || c.type === "video")
@@ -203,7 +228,7 @@ export function VideoPreview({
           {/* Text overlays - OUTSIDE player's overflow:hidden, but positioned relative to it */}
           <TextOverlay currentTime={currentTime} containerRef={playerRef} />
         </>
-      )}
+      )}}
     </PlayerWrapper>
   );
 }

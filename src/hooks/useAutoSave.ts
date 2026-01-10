@@ -62,6 +62,7 @@ export function useAutoSave(options: UseAutoSaveOptions): UseAutoSaveReturn {
       tracks: Array.from(state.tracks.values()),
       clips: Array.from(state.clips.values()),
       mediaLibrary: Array.from(state.mediaLibrary.values()),
+      canvasBackground: state.canvasBackground,
     };
   }, []);
 

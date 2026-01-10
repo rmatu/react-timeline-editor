@@ -39,6 +39,7 @@ A high-performance, touch-friendly React component library for video timeline ed
   - **Hardware Acceleration**: Up to 10x faster export using WebCodecs (GPU)
   - **Software Fallback**: Robust FFmpeg WASM encoding for compatibility
   - **Customizable**: Configurable resolution (up to 4K), FPS (up to 60), and quality
+  - **Frame-Accurate Sync**: Uses `requestVideoFrameCallback` to ensure perfect frame alignment and smooth 60fps output
   - **WYSIWYG Scaling**: Proportional scaling system ensures preview matches export output exactly
 - **Video Thumbnails** - Dynamic visual timeline with robust, generated frame previews for video clips
 - **Undo/Redo** - Comprehensive history management with optimized tracking for all editing operations
@@ -51,7 +52,7 @@ A high-performance, touch-friendly React component library for video timeline ed
 - **Auto-Save & Persistence** - Automatic project saving with adapter pattern for backend flexibility
   - 2-second debounced auto-save (like Google Docs)
   - Multi-project support (create, switch, rename, duplicate, delete)
-  - Media files persisted in IndexedDB across page reloads
+  - Media files (Video, Audio, Images/Stickers) persisted in IndexedDB across page reloads
   - Adapter pattern for easy migration to cloud storage (Supabase, AWS, etc.)
   - Manual save with Ctrl/Cmd+S
 
@@ -188,7 +189,7 @@ interface TextClip {
   color: string;            // #RRGGBB
   backgroundColor?: string;
   textAlign: 'left' | 'center' | 'right';
-  position: { x: number; y: number };  // Percentage (0-100)
+  position: { x: number; y: number };  // Percentage (unbounded)
   animation: 'none' | 'fade' | 'slide' | 'typewriter';
   locked: boolean;
   muted: boolean;

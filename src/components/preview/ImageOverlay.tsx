@@ -24,8 +24,6 @@ export function ImageOverlay({ currentTime, containerRef }: ImageOverlayProps) {
     );
   }, [clips, tracks, currentTime]);
 
-  if (activeStickerClips.length === 0) return null;
-
   // Calculate max track order for z-index inversion
   // Higher track in list (lower order) = Higher z-index
   const maxTrackOrder = useMemo(() => {
@@ -35,6 +33,8 @@ export function ImageOverlay({ currentTime, containerRef }: ImageOverlayProps) {
     });
     return max;
   }, [tracks]);
+
+  if (activeStickerClips.length === 0) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none">

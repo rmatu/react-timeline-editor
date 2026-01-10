@@ -182,8 +182,9 @@ The app uses a unified export system (in `src/utils/export/`) with a hybrid engi
 
 **1. Unified Render Engine** (`renderEngine.ts`):
 -   Central rendering class that mirrors `VideoPreview.tsx` behavior exactly.
--   Renders all layers (video, text, stickers) to HTML Canvas.
--   Handles frame-accurate video seeking with `requestVideoFrameCallback`.
+-   **Layer Management**: Renders all layers (video, text, stickers) to HTML Canvas.
+    -   **Z-Index Sorting**: Collects all clips from all tracks and sorts them by track order (Z-index) to match preview layering exactly.
+-   **Frame Accuracy**: Handles frame-accurate video seeking with `requestVideoFrameCallback` to eliminate lag/stutter in exported videos.
 -   Ensures WYSIWYG output by using the same logic for preview and export.
 -   **Proportional Scaling**: Applies a scale factor to match preview's visual proportions:
     -   Preview uses fixed constraints (300px max for stickers, absolute font sizes) in a ~420px container
@@ -544,7 +545,7 @@ src/
     -   fps, duration, resolution
     -   tracks[], clips[], mediaLibrary[]
 -   **Media Files** → IndexedDB (`video-timeline-media`)
-    -   Actual video/audio file blobs
+    -   Actual video/audio/image file blobs
     -   Referenced by `storageId` in mediaLibrary items
 
 **4. Blob URL Restoration:**

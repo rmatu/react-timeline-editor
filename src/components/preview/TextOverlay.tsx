@@ -24,8 +24,6 @@ export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
     );
   }, [clips, tracks, currentTime]);
 
-  if (activeTextClips.length === 0) return null;
-
   // Calculate max track order for z-index inversion
   const maxTrackOrder = useMemo(() => {
     let max = 0;
@@ -34,6 +32,8 @@ export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
     });
     return max;
   }, [tracks]);
+
+  if (activeTextClips.length === 0) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none">

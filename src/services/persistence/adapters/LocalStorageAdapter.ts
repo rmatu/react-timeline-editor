@@ -326,6 +326,7 @@ export class LocalStorageAdapter implements PersistenceAdapter {
         tracks: [],
         clips: [],
         mediaLibrary: [],
+        canvasBackground: { type: "color", color: "#000000" },
         ...initialData,
       };
 
