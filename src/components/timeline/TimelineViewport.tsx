@@ -147,6 +147,11 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
             playbackRate: 1,
             maxDuration: item.duration,
             thumbnailUrl: item.thumbnailUrl,
+            // Default transform properties
+            position: { x: 50, y: 50 },
+            scale: 1,
+            rotation: 0,
+            opacity: 1,
           };
           addClip(videoClip);
         } else if (item.type === 'audio') {

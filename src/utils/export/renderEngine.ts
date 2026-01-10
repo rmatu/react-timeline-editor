@@ -259,26 +259,26 @@ export class RenderEngine {
       // Use requestVideoFrameCallback if available for frame-accurate timing
       await this.seekVideoToTime(vid, seekTime);
 
-      // Draw video maintaining aspect ratio (contain mode)
-      const scale = Math.min(this.width / vid.videoWidth, this.height / vid.videoHeight);
-      const w = vid.videoWidth * scale;
-      const h = vid.videoHeight * scale;
-      const x = (this.width - w) / 2;
-      const y = (this.height - h) / 2;
+      // Calculate base video dimensions (contain mode)
+      const baseScale = Math.min(this.width / vid.videoWidth, this.height / vid.videoHeight);
+      const w = vid.videoWidth * baseScale;
+      const h = vid.videoHeight * baseScale;
+
+      // Position based on animated position (percentage to pixels, centered on point)
+      const x = (animated.position.x / 100) * this.width;
+      const y = (animated.position.y / 100) * this.height;
 
       // Apply keyframe animations (opacity, scale, rotation)
       this.ctx.save();
       this.ctx.globalAlpha = animated.opacity;
 
-      // Apply scale and rotation transforms around center
-      const centerX = x + w / 2;
-      const centerY = y + h / 2;
-      this.ctx.translate(centerX, centerY);
+      // Apply transforms around video position (center of video at position)
+      this.ctx.translate(x, y);
       this.ctx.scale(animated.scale, animated.scale);
       this.ctx.rotate((animated.rotation * Math.PI) / 180);
-      this.ctx.translate(-centerX, -centerY);
 
-      this.ctx.drawImage(vid, x, y, w, h);
+      // Draw video centered on the transformed origin
+      this.ctx.drawImage(vid, -w / 2, -h / 2, w, h);
       this.ctx.restore();
     }
   }

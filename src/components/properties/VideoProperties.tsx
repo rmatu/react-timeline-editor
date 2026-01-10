@@ -1,6 +1,7 @@
 import type { VideoClip } from "@/schemas";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { KeyframeEditor } from "./KeyframeEditor";
+import { Maximize2 } from "lucide-react";
 
 interface VideoPropertiesProps {
   clip: VideoClip;
@@ -9,6 +10,15 @@ interface VideoPropertiesProps {
 export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
   const updateClip = useTimelineStore((state) => state.updateClip);
   const saveToHistory = useTimelineStore((state) => state.saveToHistory);
+
+  const handleFitToScreen = () => {
+    saveToHistory();
+    updateClip(clip.id, {
+      position: { x: 50, y: 50 },
+      scale: 1,
+      rotation: 0,
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -30,6 +40,18 @@ export const VideoProperties = ({ clip }: VideoPropertiesProps) => {
           <option value="1.5">1.5x</option>
           <option value="2">2x</option>
         </select>
+      </div>
+
+      {/* Transform Quick Actions */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-zinc-400">Transform</label>
+        <button
+          onClick={handleFitToScreen}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-white bg-zinc-700 hover:bg-zinc-600 rounded transition-colors"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          Fit to Screen
+        </button>
       </div>
 
       {/* Keyframe Animation Section */}

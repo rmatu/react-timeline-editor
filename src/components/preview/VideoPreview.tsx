@@ -1,12 +1,12 @@
-import { useRef, useEffect, useCallback, useState, useMemo, memo } from "react";
+import { useRef, useEffect, useState, useMemo, memo } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { TextOverlay } from "./TextOverlay";
 import { ImageOverlay } from "./ImageOverlay";
 import { PlayerWrapper } from "./PlayerWrapper";
+import { DraggableVideoLayer } from "./DraggableVideoLayer";
 import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
-import { RotateCw } from "lucide-react";
 
 // Separate component for each video layer to manage its own ref and state
 const VideoLayer = memo(({ 
@@ -183,15 +183,11 @@ export function VideoPreview({
   onTimeUpdate,
   className,
 }: VideoPreviewProps) {
-  // Select specific parts of store to avoid unnecessary re-renders
   const clips = useTimelineStore((state) => state.clips);
   const tracks = useTimelineStore((state) => state.tracks);
   const resolution = useTimelineStore((state) => state.resolution);
   const selectClip = useTimelineStore((state) => state.selectClip);
   const deselectAll = useTimelineStore((state) => state.deselectAll);
-  const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
-
-  const [loadedStates, setLoadedStates] = useState<Record<string, boolean>>({});
 
   // Get all video clips sorted by track order (top track = lower order = higher priority)
   const videoClips = useMemo(() => {
@@ -215,9 +211,7 @@ export function VideoPreview({
     [videoClips, currentTime, tracks]
   );
 
-  const handleLoadStatusChange = useCallback((id: string, isLoaded: boolean) => {
-    setLoadedStates((prev) => ({ ...prev, [id]: isLoaded }));
-  }, []);
+
 
   return (
     <PlayerWrapper
@@ -247,55 +241,6 @@ export function VideoPreview({
               }
             }}
           >
-            {/* Render all video clips - layered by track order (top track = higher z-index) */}
-            {videoClips.map((clip, index) => {
-              const isActive = activeVideoClip?.id === clip.id;
-              return (
-                <div
-                  key={clip.id}
-                  className="absolute inset-0 cursor-pointer"
-                  style={{ zIndex: videoClips.length - index }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isActive) {
-                      selectClip(clip.id, e.shiftKey);
-                    }
-                  }}
-                >
-                  <VideoLayer
-                    clip={clip}
-                    isActive={isActive}
-                    isPlaying={isPlaying}
-                    currentTime={currentTime}
-                    onTimeUpdate={onTimeUpdate}
-                    onLoadStatusChange={handleLoadStatusChange}
-                    trackMuted={tracks.get(clip.trackId)?.muted ?? false}
-                    zIndex={1}
-                  />
-                </div>
-              );
-            })}
-
-            {/* Video selection overlay with transform handles - rendered with high z-index */}
-            {activeVideoClip && selectedClipIds.includes(activeVideoClip.id) && (
-              <div className="absolute inset-0 pointer-events-none border-2 border-cyan-400 rounded-lg z-10">
-                {/* Corner handles for scaling */}
-                <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full pointer-events-auto cursor-nwse-resize hover:bg-cyan-100" />
-                <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full pointer-events-auto cursor-nesw-resize hover:bg-cyan-100" />
-                <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full pointer-events-auto cursor-nesw-resize hover:bg-cyan-100" />
-                <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full pointer-events-auto cursor-nwse-resize hover:bg-cyan-100" />
-                
-                {/* Rotation handle - positioned above the element */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto">
-                  <div className="w-5 h-5 bg-white border-2 border-cyan-400 rounded-full cursor-grab hover:bg-cyan-100 flex items-center justify-center">
-                    <RotateCw className="w-3 h-3 text-cyan-600" />
-                  </div>
-                  {/* Connecting line */}
-                  <div className="w-0.5 h-4 bg-cyan-400" />
-                </div>
-              </div>
-            )}
-
             {/* Render all audio clips AND video clip audio */}
             {Array.from(clips.values())
               .filter((c): c is AudioClip | VideoClip => c.type === "audio" || c.type === "video")
@@ -314,13 +259,6 @@ export function VideoPreview({
                 );
               })}
 
-            {/* Loading state - only if active clip is not loaded */}
-            {activeVideoClip && !loadedStates[activeVideoClip.id] && (
-              <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-              </div>
-            )}
-
             {/* Playback indicator overlay */}
             {isPlaying && activeVideoClip && (
               <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/50 px-2 py-1 text-xs text-white z-20">
@@ -329,6 +267,20 @@ export function VideoPreview({
               </div>
             )}
           </div>
+
+          {/* Video overlays - OUTSIDE player's overflow:hidden so handles aren't clipped */}
+          {videoClips
+            .filter(clip => tracks.get(clip.trackId)?.visible !== false)
+            .map((clip) => (
+              <DraggableVideoLayer
+                key={clip.id}
+                clip={clip}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                containerRef={playerRef}
+                onTimeUpdate={onTimeUpdate}
+              />
+            ))}
 
           {/* Image/sticker overlays - positioned relative to player */}
           <ImageOverlay currentTime={currentTime} containerRef={playerRef} />

@@ -23,7 +23,18 @@ export const VideoClipSchema = BaseClipSchema.extend({
   thumbnails: z.array(z.string()).optional(), // Array of thumbnail URLs for strip
   volume: z.number().min(0).max(1).default(1),
   playbackRate: z.number().positive().default(1),
+  // Transform properties (base values, can be overridden by keyframes)
+  position: z
+    .object({
+      x: z.number(), // Percentage (can be outside 0-100 for edge positioning)
+      y: z.number(),
+    })
+    .default({ x: 50, y: 50 }),
+  scale: z.number().min(0).default(1),
+  rotation: z.number().default(0), // Degrees
+  opacity: z.number().min(0).max(1).default(1),
 });
+
 
 // Audio clip schema
 export const AudioClipSchema = BaseClipSchema.extend({
