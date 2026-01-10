@@ -221,10 +221,13 @@ export function getTransitionTransform(
       };
 
     // Push transitions (both clips move together)
+    // Push transitions (both clips move together)
     case "push-left":
       return {
         opacity: 1,
-        translateX: side === "in" ? (1 - p) * 100 : -p * 100, // Incoming from right, outgoing to left
+        // In: Right (+100) -> Center (0)
+        // Out: Center (0) -> Left (-100)
+        translateX: side === "in" ? (1 - p) * 100 : -(1 - p) * 100, // Corrected from -p * 100
         translateY: 0,
         scale: 1,
       };
@@ -232,7 +235,9 @@ export function getTransitionTransform(
     case "push-right":
       return {
         opacity: 1,
-        translateX: side === "in" ? (1 - p) * -100 : p * 100, // Incoming from left, outgoing to right
+        // In: Left (-100) -> Center (0)
+        // Out: Center (0) -> Right (+100)
+        translateX: side === "in" ? (1 - p) * -100 : (1 - p) * 100, // Corrected from p * 100
         translateY: 0,
         scale: 1,
       };
@@ -241,7 +246,9 @@ export function getTransitionTransform(
       return {
         opacity: 1,
         translateX: 0,
-        translateY: side === "in" ? (1 - p) * 100 : -p * 100, // Incoming from bottom, outgoing to top
+        // In: Bottom (+100) -> Center (0)
+        // Out: Center (0) -> Top (-100)
+        translateY: side === "in" ? (1 - p) * 100 : -(1 - p) * 100, // Corrected from -p * 100
         scale: 1,
       };
 
@@ -249,7 +256,9 @@ export function getTransitionTransform(
       return {
         opacity: 1,
         translateX: 0,
-        translateY: side === "in" ? (1 - p) * -100 : p * 100, // Incoming from top, outgoing to bottom
+        // In: Top (-100) -> Center (0)
+        // Out: Center (0) -> Bottom (+100)
+        translateY: side === "in" ? (1 - p) * -100 : (1 - p) * 100, // Corrected from p * 100
         scale: 1,
       };
 
@@ -425,16 +434,16 @@ export function getMaxTransitionDuration(
     const gap = clip.startTime - (before.startTime + before.duration);
     if (gap <= 0) {
       // Clips are touching or overlapping
-      const otherTransition = before.transitionOut?.duration ?? 0;
-      return Math.min(maxFromClip, clip.duration - otherTransition);
+      // We only constrain to half duration to allow standard cross-dissolves behavior
+      // (Even though on single track they can't cross-dissolve, we shouldn't arbitrarily limit based on neighbor)
+      return maxFromClip;
     }
   }
 
   if (side === "out" && after) {
     const gap = after.startTime - (clip.startTime + clip.duration);
     if (gap <= 0) {
-      const otherTransition = after.transitionIn?.duration ?? 0;
-      return Math.min(maxFromClip, clip.duration - otherTransition);
+      return maxFromClip;
     }
   }
 
