@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState, useMemo, memo } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { TextOverlay } from "./TextOverlay";
+import { ImageOverlay } from "./ImageOverlay";
 import { PlayerWrapper } from "./PlayerWrapper";
 import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
@@ -328,6 +329,9 @@ export function VideoPreview({
               </div>
             )}
           </div>
+
+          {/* Image/sticker overlays - positioned relative to player */}
+          <ImageOverlay currentTime={currentTime} containerRef={playerRef} />
 
           {/* Text overlays - OUTSIDE player's overflow:hidden, but positioned relative to it */}
           <TextOverlay currentTime={currentTime} containerRef={playerRef} />

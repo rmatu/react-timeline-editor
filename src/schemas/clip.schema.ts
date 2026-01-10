@@ -54,8 +54,8 @@ export const TextClipSchema = BaseClipSchema.extend({
   textAlign: z.enum(["left", "center", "right"]).default("center"),
   position: z
     .object({
-      x: z.number().min(0).max(100), // Percentage
-      y: z.number().min(0).max(100),
+      x: z.number(), // Percentage (can be outside 0-100 for edge positioning)
+      y: z.number(),
     })
     .default({ x: 50, y: 50 }),
   animation: z
@@ -69,20 +69,22 @@ export const TextClipSchema = BaseClipSchema.extend({
   maxWidth: z.number().min(0).nullish(), // Max width in pixels for text wrapping
 });
 
-// Sticker/effect clip schema
+// Sticker/image clip schema
 export const StickerClipSchema = BaseClipSchema.extend({
   type: z.literal("sticker"),
   assetId: z.string(),
-  assetUrl: z.string().url(),
+  assetUrl: z.string(), // Can be blob URL or http URL
+  name: z.string().optional(), // Original filename for display
   scale: z.number().positive().default(1),
   rotation: z.number().default(0), // Degrees
   opacity: z.number().min(0).max(1).default(1),
   position: z
     .object({
-      x: z.number().min(0).max(100),
-      y: z.number().min(0).max(100),
+      x: z.number(), // Percentage (can be outside 0-100 for edge positioning)
+      y: z.number(),
     })
     .default({ x: 50, y: 50 }),
+  isAnimated: z.boolean().default(false), // true for animated GIFs
 });
 
 // Union of all clip types

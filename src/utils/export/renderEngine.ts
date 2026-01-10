@@ -8,6 +8,16 @@
 
 import type { Clip, Track, VideoClip, TextClip, StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
+import { parseGIF, decompressFrames } from "gifuct-js";
+
+// GIF frame data for export
+interface GifFrameData {
+  frames: ImageData[];
+  delays: number[];
+  totalDuration: number;
+  width: number;
+  height: number;
+}
 
 // ============================================================================
 // Types
@@ -26,6 +36,7 @@ export interface RenderContext {
 export interface VideoResources {
   videoElements: Map<string, HTMLVideoElement>;
   stickerImages: Map<string, HTMLImageElement>;
+  gifFrames: Map<string, GifFrameData>;
 }
 
 export interface RenderEngineOptions {
@@ -67,6 +78,7 @@ export class RenderEngine {
   async loadResources(): Promise<void> {
     const videoElements = new Map<string, HTMLVideoElement>();
     const stickerImages = new Map<string, HTMLImageElement>();
+    const gifFrames = new Map<string, GifFrameData>();
 
     // Load video clips
     const videoClips = this.getClipsByType<VideoClip>("video");
@@ -85,22 +97,102 @@ export class RenderEngine {
       })
     );
 
-    // Load sticker images
+    // Load sticker images (and extract GIF frames for animated stickers)
     const stickerClips = this.getClipsByType<StickerClip>("sticker");
     await Promise.all(
       stickerClips.map(async (clip) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = clip.assetUrl;
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error(`Failed to load sticker: ${clip.assetUrl}`));
-        });
-        stickerImages.set(clip.id, img);
+        // For animated GIFs, extract frames
+        if (clip.isAnimated) {
+          try {
+            const frameData = await this.extractGifFrames(clip.assetUrl);
+            gifFrames.set(clip.id, frameData);
+          } catch (err) {
+            console.error(`Failed to extract GIF frames for clip ${clip.id}:`, err);
+            // Fallback: try to load as static image
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = clip.assetUrl;
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = () => reject(new Error(`Failed to load sticker: ${clip.assetUrl}`));
+            });
+            stickerImages.set(clip.id, img);
+          }
+        } else {
+          // Static image
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = clip.assetUrl;
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error(`Failed to load sticker: ${clip.assetUrl}`));
+          });
+          stickerImages.set(clip.id, img);
+        }
       })
     );
 
-    this.resources = { videoElements, stickerImages };
+    this.resources = { videoElements, stickerImages, gifFrames };
+  }
+
+  /**
+   * Extract frames from a GIF file for animation during export
+   */
+  private async extractGifFrames(url: string): Promise<GifFrameData> {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+
+    const gif = parseGIF(buffer);
+    const frames = decompressFrames(gif, true);
+
+    if (frames.length === 0) {
+      throw new Error("No frames found in GIF");
+    }
+
+    const width = frames[0].dims.width;
+    const height = frames[0].dims.height;
+
+    // Create temp canvas for compositing frames
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tempCtx = tempCanvas.getContext("2d");
+    if (!tempCtx) throw new Error("Failed to get canvas context");
+
+    const processedFrames: ImageData[] = [];
+    const delays: number[] = [];
+    let totalDuration = 0;
+
+    for (const frame of frames) {
+      // Handle disposal method
+      if (frame.disposalType === 2) {
+        tempCtx.clearRect(0, 0, width, height);
+      }
+
+      // Create ImageData from frame patch
+      const imageData = tempCtx.createImageData(frame.dims.width, frame.dims.height);
+      imageData.data.set(frame.patch);
+
+      // Draw frame patch at its position
+      tempCtx.putImageData(imageData, frame.dims.left, frame.dims.top);
+
+      // Capture the full frame
+      const fullFrame = tempCtx.getImageData(0, 0, width, height);
+      processedFrames.push(fullFrame);
+
+      // Default delay is 100ms if not specified or too short
+      const delay = frame.delay >= 20 ? frame.delay : 100;
+      delays.push(delay);
+      totalDuration += delay;
+    }
+
+    return {
+      frames: processedFrames,
+      delays,
+      totalDuration,
+      width,
+      height,
+    };
   }
 
   /**
@@ -223,9 +315,6 @@ export class RenderEngine {
     const stickerClips = this.getActiveClips<StickerClip>("sticker", time);
 
     for (const clip of stickerClips) {
-      const img = this.resources!.stickerImages.get(clip.id);
-      if (!img) continue;
-
       // Get animated properties for keyframe animations
       const animated = getAnimatedPropertiesAtTime(clip, time);
 
@@ -241,8 +330,44 @@ export class RenderEngine {
       ctx.scale(animated.scale, animated.scale);
       ctx.globalAlpha = animated.opacity;
 
-      // Draw centered
-      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      // Check if this is an animated GIF with extracted frames
+      const gifData = this.resources!.gifFrames.get(clip.id);
+      if (gifData && clip.isAnimated) {
+        // Calculate which frame to show based on clip-relative time
+        const clipTimeMs = (time - clip.startTime) * 1000;
+        const loopTime = clipTimeMs >= 0 ? clipTimeMs % gifData.totalDuration : 0;
+
+        // Find the frame index based on accumulated delays
+        let frameIndex = 0;
+        let accumulated = 0;
+        for (let i = 0; i < gifData.delays.length; i++) {
+          accumulated += gifData.delays[i];
+          if (loopTime < accumulated) {
+            frameIndex = i;
+            break;
+          }
+        }
+
+        // Draw the GIF frame
+        const frameData = gifData.frames[frameIndex];
+        if (frameData) {
+          // Create a temp canvas to convert ImageData to drawable image
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = gifData.width;
+          tempCanvas.height = gifData.height;
+          const tempCtx = tempCanvas.getContext("2d");
+          if (tempCtx) {
+            tempCtx.putImageData(frameData, 0, 0);
+            ctx.drawImage(tempCanvas, -gifData.width / 2, -gifData.height / 2);
+          }
+        }
+      } else {
+        // Static image
+        const img = this.resources!.stickerImages.get(clip.id);
+        if (img) {
+          ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        }
+      }
 
       ctx.restore();
     }
@@ -335,7 +460,7 @@ export class RenderEngine {
       ctx.textBaseline = "middle";
 
       // Wrap text into lines based on maxWidth
-      const lines = this.wrapText(ctx, clip.content, clip.maxWidth);
+      const lines = this.wrapText(ctx, clip.content, clip.maxWidth ?? undefined);
       const totalHeight = lines.length * lineHeight;
 
       // Measure max line width for alignment and background

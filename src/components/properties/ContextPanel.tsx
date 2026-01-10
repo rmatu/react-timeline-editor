@@ -3,6 +3,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { VideoProperties } from "./VideoProperties";
 import { AudioProperties } from "./AudioProperties";
 import { TextProperties } from "./TextProperties";
+import { StickerProperties } from "./StickerProperties";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -60,7 +61,7 @@ export const ContextPanel = () => {
     <Sheet open={isPanelOpen} modal={false}>
       <SheetContent
         side="right"
-        className="w-80 bg-zinc-900 border-l border-zinc-700 p-0 rounded-l-xl shadow-2xl flex flex-col"
+        className="top-14 h-[calc(100%-3.5rem)] w-80 bg-zinc-900 border-l border-zinc-700 p-0 rounded-tl-xl shadow-2xl flex flex-col focus:outline-none"
         showOverlay={false}
         showCloseButton={false}
         onInteractOutside={(e) => e.preventDefault()}
@@ -87,11 +88,7 @@ export const ContextPanel = () => {
                 {clip.type === "video" && <VideoProperties clip={clip} />}
                 {clip.type === "audio" && <AudioProperties clip={clip} />}
                 {clip.type === "text" && <TextProperties clip={clip} />}
-                {clip.type === "sticker" && (
-                  <div className="text-xs text-zinc-500">
-                    Sticker properties coming soon
-                  </div>
-                )}
+                {clip.type === "sticker" && <StickerProperties clip={clip} />}
               </>
             ) : null}
           </div>
