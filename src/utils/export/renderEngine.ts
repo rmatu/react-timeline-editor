@@ -9,6 +9,7 @@
 import type { Clip, Track, VideoClip, TextClip, StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { parseGIF, decompressFrames } from "gifuct-js";
+import { CanvasBackground } from "@/stores/timelineStore";
 
 // Sticker size constraints (matches preview CSS max-w-[300px] max-h-[300px])
 // Preview uses 300px max - to match WYSIWYG, we scale based on typical preview container width
@@ -51,11 +52,14 @@ export interface RenderEngineOptions {
   height: number;
   tracks: Map<string, Track>;
   clips: Map<string, Clip>;
+  canvasBackground: CanvasBackground;
 }
 
 // ============================================================================
 // Render Engine
 // ============================================================================
+
+
 
 export class RenderEngine {
   private canvas: HTMLCanvasElement;
@@ -64,7 +68,9 @@ export class RenderEngine {
   private height: number;
   private tracks: Map<string, Track>;
   private clips: Map<string, Clip>;
+  private canvasBackground: CanvasBackground;
   private resources: VideoResources | null = null;
+  private backgroundImages: Map<string, HTMLImageElement> = new Map();
 
   constructor(options: RenderEngineOptions) {
     // Ensure even dimensions for video codecs
@@ -72,6 +78,7 @@ export class RenderEngine {
     this.height = options.height % 2 === 0 ? options.height : options.height - 1;
     this.tracks = options.tracks;
     this.clips = options.clips;
+    this.canvasBackground = options.canvasBackground || { type: "color", color: "#000000" };
 
     this.canvas = document.createElement("canvas");
     this.canvas.width = this.width;
@@ -139,6 +146,24 @@ export class RenderEngine {
       })
     );
 
+
+
+    // Load background image if needed
+    if (this.canvasBackground.type === "image" && this.canvasBackground.url) {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = this.canvasBackground.url;
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error(`Failed to load background image: ${this.canvasBackground.url}`));
+        });
+        this.backgroundImages.set("bg", img);
+      } catch (err) {
+        console.error("Failed to load background image", err);
+      }
+    }
+
     this.resources = { videoElements, stickerImages, gifFrames };
   }
 
@@ -205,19 +230,20 @@ export class RenderEngine {
   /**
    * Render a single frame at the given time
    */
-  /**
-   * Render a single frame at the given time
-   */
+
+
+
+
+
   async renderFrame(time: number): Promise<HTMLCanvasElement> {
     if (!this.resources) {
       throw new Error("Resources not loaded. Call loadResources() first.");
     }
 
-    const ctx = this.ctx;
 
-    // 1. Clear canvas with black background
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, this.width, this.height);
+
+    // 1. Clear canvas & Draw Background
+    await this.renderBackground(time);
 
     // 2. Get ALL active clips regardless of type
     const allClips = [
@@ -264,6 +290,91 @@ export class RenderEngine {
   // ==========================================================================
   // Clip Renderers
   // ==========================================================================
+
+  private async renderBackground(time: number): Promise<void> {
+    const ctx = this.ctx;
+    const bg = this.canvasBackground;
+
+    // Reset transform just in case
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (bg.type === "color") {
+      ctx.fillStyle = bg.color;
+      ctx.fillRect(0, 0, this.width, this.height);
+    } else if (bg.type === "image" && bg.url) {
+      // Draw image cover
+      const img = this.backgroundImages.get("bg");
+      if (img) {
+        const scale = Math.max(this.width / img.width, this.height / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (this.width - w) / 2;
+        const y = (this.height - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+      } else {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, this.width, this.height);
+      }
+    } else if (bg.type === "blur") {
+      // Blur background: find active video clip (bottom-most)
+      // Similar strategy to VideoPreview: find active clips, sort by track, take bottom one.
+      const activeVideos = this.getActiveClips<VideoClip>("video", time);
+      // Sort ascending (track order 0 is top visually, so bottom layer is LAST in track list? No.)
+      // Tracks: Order 0 = Top, Order 1 = Below.
+      // So lowest Priority is Highest Order.
+      // We want the clip on the Highest Order track (visually bottom).
+
+      let backgroundVideoClip: VideoClip | null = null;
+      if (activeVideos.length > 0) {
+        // Find video on track with highest order number
+        backgroundVideoClip = activeVideos.reduce((prev, curr) => {
+          const trackP = this.tracks.get(prev.trackId);
+          const trackC = this.tracks.get(curr.trackId);
+          const orderP = trackP?.order ?? 999;
+          const orderC = trackC?.order ?? 999;
+          return orderC > orderP ? curr : prev;
+        });
+      }
+
+      if (backgroundVideoClip) {
+        const vid = this.resources!.videoElements.get(backgroundVideoClip.id);
+        if (vid) {
+          // We need to seek the video to the right time? 
+          // renderVideoClip already seeks it. But we call renderBackground FIRST.
+          // So we should seek here.
+          const seekTime = backgroundVideoClip.sourceStartTime + (time - backgroundVideoClip.startTime) * backgroundVideoClip.playbackRate;
+          await this.seekVideoToTime(vid, seekTime);
+
+          // Draw scaled to cover
+          const scale = Math.max(this.width / vid.videoWidth, this.height / vid.videoHeight);
+          const w = vid.videoWidth * scale;
+          const h = vid.videoHeight * scale;
+          const x = (this.width - w) / 2;
+          const y = (this.height - h) / 2;
+
+          ctx.save();
+          ctx.filter = `blur(${Math.max(0, bg.blurAmount ?? 0) * 0.5}px)`;
+          // Note: ctx.filter is supported in modern browsers. 
+          // For FFmpeg export? headless browser? It should work in Chrome/Firefox.
+          // If context doesn't support filter, we lose blur.
+          ctx.drawImage(vid, x, y, w, h);
+          ctx.filter = 'none';
+
+          // Add an opacity overlay? Preview uses opacity-50.
+          ctx.fillStyle = "rgba(0,0,0,0.5)"; // Dim it a bit?
+          ctx.fillRect(0, 0, this.width, this.height);
+
+          ctx.restore();
+        } else {
+          ctx.fillStyle = "black";
+          ctx.fillRect(0, 0, this.width, this.height);
+        }
+      } else {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, this.width, this.height);
+      }
+    }
+  }
 
   private async renderVideoClip(clip: VideoClip, time: number): Promise<void> {
     const vid = this.resources!.videoElements.get(clip.id);

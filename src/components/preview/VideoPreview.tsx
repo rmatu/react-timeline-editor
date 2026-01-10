@@ -87,8 +87,9 @@ export function VideoPreview({
   const clips = useTimelineStore((state) => state.clips);
   const tracks = useTimelineStore((state) => state.tracks);
   const resolution = useTimelineStore((state) => state.resolution);
-  const selectClip = useTimelineStore((state) => state.selectClip);
-  const deselectAll = useTimelineStore((state) => state.deselectAll);
+  const canvasBackground = useTimelineStore((state) => state.canvasBackground);
+
+  const selectBackground = useTimelineStore((state) => state.selectBackground);
 
   // Get all video clips sorted by track order (top track = lower order = higher priority)
   const videoClips = useMemo(() => {
@@ -126,29 +127,115 @@ export function VideoPreview({
       resolution={resolution}
       className={className}
       onClick={(e) => {
-        // Deselect if clicking the empty background (PlayerWrapper container)
+        // If clicking the empty background (PlayerWrapper container), select background
         if (e.target === e.currentTarget) {
-          deselectAll();
+          selectBackground();
         }
       }}
     >
-      {({ playerRef }) => (
+      {({ playerRef }) => {
+        // Background Styles
+        const backgroundStyle: React.CSSProperties = {
+            backgroundColor: canvasBackground.type === "color" ? canvasBackground.color : "black",
+        };
+
+        return (
         <>
-          {/* Player container - has overflow:hidden for video content only */}
+          {/* Player container */}
           <div
             ref={playerRef}
-            className="relative w-full h-full overflow-hidden rounded-lg bg-black shadow-2xl cursor-pointer"
+            className="relative w-full h-full overflow-hidden shadow-2xl cursor-pointer"
+            style={backgroundStyle}
             onClick={(e) => {
-              // Only select if clicking directly on container (not on text overlay)
+              // Select background if clicking container background
               if (e.target === e.currentTarget) {
                 if (activeVideoClip) {
-                  selectClip(activeVideoClip.id, e.shiftKey);
+                    // This case is tricky: if there is a video clip filling the screen, 
+                    // changing background won't be visible unless video is transparent or smaller.
+                    // But if they click the VIDEO, they probably want to select the VIDEO clip.
+                    // But if they click OFF the video (letterbox area), they want background.
+                    // The player container logic is: content is centered. 
+                    // BUT VideoPreview actually renders video elements inside. 
+                    
+                    // If e.target === e.currentTarget, it means they clicked the "black bars" or the container itself.
+                    // If video fills container, they can't click container.
+                    // But if video is small (transformed), they can click container.
+                    
+                    // Logic: If clicking container, and we have an active video clip, current logic selects it?
+                    // No. Original logic was:
+                    // if (activeVideoClip) selectClip(activeVideoClip.id)
+                    // This implies the container was acting as the click target FOR the video.
+                    // But now we want to distinguish "Background" vs "Content".
+                    
+                    // Let's keep it simple: clicking the "Container" selects the Background.
+                    // To select the video, they must click the VIDEO (DraggableVideoLayer).
+                    // BUT DraggableVideoLayer has 'pointer-events-auto'? Yes.
+                    
+                    // The original code had:
+                    // if (activeVideoClip) selectClip(...) else deselectAll()
+                    // This meant clicking ANYWHERE in the player selected the active video clip.
+                    // We must change this so that clicking the BACKGROUND selects the background.
+                    // But we still want easy selection of the video.
+                    
+                    // Compromise: 
+                    // If they click the container, we check if they clicked "on" the video content? 
+                    // Hard to know without hit testing.
+                    // 
+                    // Let's change behavior: 
+                    // Clicking container -> selectBackground().
+                    // To select video, they must click the video layer.
+                    // Since DraggableVideoLayer is rendered separately, check if it captures clicks.
+                    // DraggableVideoLayer usually handles its own clicks/drags.
+                    
+                    // So:
+                    selectBackground();
                 } else {
-                  deselectAll();
+                   selectBackground();
                 }
               }
             }}
           >
+            {/* Background Image Layer */}
+            {canvasBackground.type === "image" && canvasBackground.url && (
+                <div 
+                    className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
+                    style={{ backgroundImage: `url(${canvasBackground.url})` }}
+                />
+            )}
+
+            {/* Background Blur Layer */}
+            {canvasBackground.type === "blur" && activeVideoClip && (
+              <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
+                {/* 
+                   We duplicate the active video logic here for the blur background. 
+                   We need to ensure it syncs. Since <AudioLayer> drives the "real" audio, 
+                   this video element is just for display.
+                   We rely on the main video rendering to drive the visual? 
+                   No, we need to render the video frame here too.
+                   We can just render a <video> that syncs to currentTime.
+                */}
+                <video
+                    src={activeVideoClip.sourceUrl}
+                    className="w-full h-full object-cover filter blur-xl scale-110 opacity-50"
+                    style={{ 
+                        filter: `blur(${Math.max(0, canvasBackground.blurAmount ?? 0) * 0.5}px)` 
+                    }}
+                    muted
+                    ref={(el) => {
+                        if (el) {
+                            // Simple sync - might jitter but acceptable for background
+                            if (Math.abs(el.currentTime - (currentTime - activeVideoClip.startTime + activeVideoClip.sourceStartTime)) > 0.3) {
+                                el.currentTime = Math.max(0, currentTime - activeVideoClip.startTime + activeVideoClip.sourceStartTime);
+                            }
+                            if (isPlaying && el.paused) el.play().catch(() => {});
+                            if (!isPlaying && !el.paused) el.pause();
+                            el.playbackRate = activeVideoClip.playbackRate || 1;
+                        }
+                    }}
+                />
+              </div>
+            )}
+
             {/* Render all audio clips AND video clip audio */}
             {Array.from(clips.values())
               .filter((c): c is AudioClip | VideoClip => c.type === "audio" || c.type === "video")
@@ -203,7 +290,7 @@ export function VideoPreview({
           {/* Text overlays - OUTSIDE player's overflow:hidden, but positioned relative to it */}
           <TextOverlay currentTime={currentTime} containerRef={playerRef} />
         </>
-      )}
+      )}}
     </PlayerWrapper>
   );
 }

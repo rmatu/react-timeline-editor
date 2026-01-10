@@ -472,7 +472,7 @@ export function DraggableVideoLayer({
         <video
           ref={videoRef}
           src={clip.sourceUrl}
-          className="w-full h-full rounded-lg pointer-events-none object-contain"
+          className="w-full h-full pointer-events-none object-contain"
           preload="auto"
           playsInline
           onLoadedMetadata={handleLoadedMetadata}

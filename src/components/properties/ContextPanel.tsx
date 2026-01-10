@@ -4,6 +4,7 @@ import { VideoProperties } from "./VideoProperties";
 import { AudioProperties } from "./AudioProperties";
 import { TextProperties } from "./TextProperties";
 import { StickerProperties } from "./StickerProperties";
+import { BackgroundProperties } from "./BackgroundProperties";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -15,6 +16,7 @@ import {
 
 export const ContextPanel = () => {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
+  const isBackgroundSelected = useTimelineStore((state) => state.isBackgroundSelected);
   const clips = useTimelineStore((state) => state.clips);
 
   // Panel stays open until explicitly closed
@@ -29,9 +31,12 @@ export const ContextPanel = () => {
       // New selection - open panel and set editing clip
       setIsPanelOpen(true);
       setEditingClipId(selectedClipIds[0]);
+    } else if (isBackgroundSelected) {
+       setIsPanelOpen(true);
+       setEditingClipId(null);
     }
     prevSelectedRef.current = selectedClipIds;
-  }, [selectedClipIds]);
+  }, [selectedClipIds, isBackgroundSelected]);
 
   const handleClose = () => {
     setIsPanelOpen(false);
@@ -53,6 +58,9 @@ export const ContextPanel = () => {
   const getTitle = () => {
     if (clip) {
       return `${clip.type.charAt(0).toUpperCase() + clip.type.slice(1)} Properties`;
+    }
+    if (isBackgroundSelected) {
+      return "Video Background";
     }
     return "Properties";
   };
@@ -90,6 +98,8 @@ export const ContextPanel = () => {
                 {clip.type === "text" && <TextProperties clip={clip} />}
                 {clip.type === "sticker" && <StickerProperties clip={clip} />}
               </>
+            ) : isBackgroundSelected ? (
+              <BackgroundProperties />
             ) : null}
           </div>
         </ScrollArea>

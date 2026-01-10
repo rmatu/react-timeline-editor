@@ -11,6 +11,7 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import type { Clip, Track, VideoClip, AudioClip } from "@/schemas";
 import type { ExportSettings } from "@/components/ExportSettingsModal";
 import { RenderEngine } from "./renderEngine";
+import { CanvasBackground } from "@/stores/timelineStore";
 
 // ============================================================================
 // Types
@@ -20,6 +21,7 @@ export interface WebCodecsExportOptions extends ExportSettings {
   duration: number;
   tracks: Map<string, Track>;
   clips: Map<string, Clip>;
+  canvasBackground: CanvasBackground;
   onProgress?: (progress: number) => void;
 }
 
@@ -47,6 +49,7 @@ export async function exportWithWebCodecs({
   duration,
   tracks,
   clips,
+  canvasBackground,
   onProgress,
 }: WebCodecsExportOptions): Promise<Blob> {
   if (!isWebCodecsSupported()) {
@@ -56,7 +59,7 @@ export async function exportWithWebCodecs({
   onProgress?.(0.01);
 
   // 1. Initialize RenderEngine
-  const renderEngine = new RenderEngine({ width, height, tracks, clips });
+  const renderEngine = new RenderEngine({ width, height, tracks, clips, canvasBackground });
   const { width: actualWidth, height: actualHeight } = renderEngine.getDimensions();
 
   await renderEngine.loadResources();

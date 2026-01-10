@@ -149,6 +149,7 @@ function App() {
         duration: store.totalDuration,
         tracks: store.tracks,
         clips: store.clips,
+        canvasBackground: store.canvasBackground,
         onProgress: (progress) => {
           // Show different messages based on phase (approximate)
           if (progress < 0.8) {

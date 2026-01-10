@@ -46,6 +46,13 @@ export interface MediaItem {
   dimensions?: { width: number; height: number };
 }
 
+export interface CanvasBackground {
+  type: "color" | "image" | "blur";
+  color: string;
+  url?: string;
+  blurAmount?: number;
+}
+
 // Enable Immer support for Map and Set
 enableMapSet();
 
@@ -54,6 +61,7 @@ interface TimelineState {
   fps: number;
   totalDuration: number;
   resolution: { width: number; height: number };
+  canvasBackground: CanvasBackground;
 
   // Viewport state
   zoomLevel: number;
@@ -71,6 +79,7 @@ interface TimelineState {
   // Selection state
   selectedClipIds: string[];
   selectedTrackId: string | null;
+  isBackgroundSelected: boolean;
 
   // Interaction state
   isDragging: boolean;
@@ -110,6 +119,8 @@ interface TimelineActions {
   selectClips: (clipIds: string[]) => void;
   deselectAll: () => void;
   selectTrack: (trackId: string | null) => void;
+  selectBackground: () => void;
+  setCanvasBackground: (background: Partial<CanvasBackground>) => void;
 
   // Interaction state
   setDragging: (isDragging: boolean, clipId?: string) => void;
@@ -150,7 +161,7 @@ interface TimelineActions {
   setResolution: (width: number, height: number) => void;
 
   // Bulk operations
-  loadTimeline: (tracks: Track[], clips: Clip[], mediaLibrary?: MediaItem[]) => void;
+  loadTimeline: (tracks: Track[], clips: Clip[], mediaLibrary?: MediaItem[], canvasBackground?: CanvasBackground) => void;
   exportTimeline: () => TimelineExport;
   clearTimeline: () => void;
 
@@ -177,6 +188,7 @@ export const useTimelineStore = create<TimelineStore>()(
       fps: DEFAULT_FPS,
       totalDuration: DEFAULT_DURATION,
       resolution: { width: 1920, height: 1080 },
+      canvasBackground: { type: "color", color: "#000000" },
 
       zoomLevel: DEFAULT_ZOOM,
       scrollX: 0,
@@ -191,6 +203,7 @@ export const useTimelineStore = create<TimelineStore>()(
 
       selectedClipIds: [],
       selectedTrackId: null,
+      isBackgroundSelected: false,
 
       isDragging: false,
       isTrimming: false,
@@ -283,22 +296,38 @@ export const useTimelineStore = create<TimelineStore>()(
           } else {
             state.selectedClipIds = [clipId];
           }
+          state.isBackgroundSelected = false;
         }),
 
       selectClips: (clipIds) =>
         set((state) => {
           state.selectedClipIds = clipIds;
+          state.isBackgroundSelected = false;
         }),
 
       deselectAll: () =>
         set((state) => {
           state.selectedClipIds = [];
           state.selectedTrackId = null;
+          state.isBackgroundSelected = false;
         }),
 
       selectTrack: (trackId) =>
         set((state) => {
           state.selectedTrackId = trackId;
+          state.isBackgroundSelected = false;
+        }),
+
+      selectBackground: () =>
+        set((state) => {
+          state.selectedClipIds = [];
+          state.selectedTrackId = null;
+          state.isBackgroundSelected = true;
+        }),
+
+      setCanvasBackground: (background) =>
+        set((state) => {
+          state.canvasBackground = { ...state.canvasBackground, ...background };
         }),
 
       // Interaction state
@@ -651,15 +680,19 @@ export const useTimelineStore = create<TimelineStore>()(
         }),
 
       // Bulk operations
-      loadTimeline: (tracks, clips, mediaLibrary) =>
+      loadTimeline: (tracks, clips, mediaLibrary, canvasBackground) =>
         set((state) => {
           state.tracks = new Map(tracks.map((t) => [t.id, t]));
           state.clips = new Map(clips.map((c) => [c.id, c]));
           if (mediaLibrary) {
             state.mediaLibrary = new Map(mediaLibrary.map((m) => [m.id, m]));
           }
+          if (canvasBackground) {
+            state.canvasBackground = canvasBackground;
+          }
           state.selectedClipIds = [];
           state.selectedTrackId = null;
+          state.isBackgroundSelected = false;
           state.history = [];
           state.historyIndex = -1;
         }),
@@ -684,6 +717,7 @@ export const useTimelineStore = create<TimelineStore>()(
           tracks: Array.from(state.tracks.values()),
           clips: Array.from(state.clips.values()),
           mediaLibrary: Array.from(state.mediaLibrary.values()),
+          canvasBackground: state.canvasBackground,
         };
       },
 
