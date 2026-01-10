@@ -1,5 +1,6 @@
 import { useEffect, useCallback, type RefObject } from "react";
 import { useGesture } from "@use-gesture/react";
+import { useTimelineStore, type TimelineToolMode } from "@/stores/timelineStore";
 import {
   MIN_ZOOM,
   MAX_ZOOM,
@@ -19,6 +20,7 @@ export function useTimelineGestures(
   options: UseTimelineGesturesOptions
 ) {
   const { zoomLevel, onZoom, onScrollBy } = options;
+  const toolMode = useTimelineStore((s) => s.toolMode);
 
   // Prevent default touch actions on the container
   useEffect(() => {
@@ -89,22 +91,32 @@ export function useTimelineGestures(
         }
       },
 
-      // Drag to scroll (when not on a clip)
-      onDrag: ({ delta: [dx, dy], event, first, pinching, memo }) => {
+      // Drag to scroll (when in hand mode or middle-click)
+      onDrag: ({ delta: [dx, dy], event, first, pinching, memo, buttons }) => {
         // Don't scroll during pinch
         if (pinching) return;
 
-        // Check on first event if we should skip scrolling (started on a clip or trim handle)
+        // Check on first event if we should skip scrolling
         if (first) {
           const target = event?.target as HTMLElement;
           const onClipOrHandle = target?.closest(".clip") || target?.closest(".trim-handle") || target?.closest(".duration-handle");
-          // Return true to memo if we should skip, this persists for the whole gesture
-          if (onClipOrHandle) return true;
-          return false;
+          
+          // Always skip scrolling if started on a clip/handle
+          if (onClipOrHandle) return { skip: true };
+          
+          // Middle mouse button (button 4 in mask) always enables panning
+          const isMiddleClick = (buttons & 4) !== 0;
+          
+          // Only allow drag panning in "hand" mode or with middle-click
+          if (toolMode !== "hand" && !isMiddleClick) {
+            return { skip: true };
+          }
+          
+          return { skip: false };
         }
 
-        // Skip scrolling if memo indicates we started on a clip/handle
-        if (memo === true) return memo;
+        // Skip scrolling based on memo
+        if (memo?.skip) return memo;
 
         onScrollBy(-dx, -dy);
         return memo;

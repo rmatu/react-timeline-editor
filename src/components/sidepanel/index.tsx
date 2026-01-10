@@ -3,13 +3,34 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSidepanelStore } from '@/stores/sidepanelStore';
 import { panelRegistry, getPanelById } from './panelRegistry';
 
-export function Sidepanel() {
+export interface ProjectContext {
+  /** Current project from useProjectHydration */
+  currentProject: { id: string; name: string } | null;
+  /** Whether there are unsaved changes */
+  hasPendingChanges: boolean;
+  /** Switch to a project by ID */
+  onSwitchProject: (id: string) => Promise<void>;
+  /** Create a new project */
+  onCreateProject: (name: string) => Promise<unknown>;
+  /** Save current project before switching */
+  onSaveProject: () => Promise<void>;
+  /** Loading state */
+  isLoading?: boolean;
+}
+
+interface SidepanelProps {
+  /** Project context for ProjectsPanel */
+  projectContext?: ProjectContext;
+}
+
+export function Sidepanel({ projectContext }: SidepanelProps) {
   const { isOpen, activePanel, width, toggle, setActivePanel, setWidth } =
     useSidepanelStore();
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  const ActivePanelComponent = getPanelById(activePanel)?.component;
+  const activePanelConfig = getPanelById(activePanel);
+  const ActivePanelComponent = activePanelConfig?.component;
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -87,7 +108,13 @@ export function Sidepanel() {
 
           {/* Panel Body */}
           <div className="flex-1 overflow-auto">
-            {ActivePanelComponent && <ActivePanelComponent />}
+            {ActivePanelComponent && (
+              activePanelConfig?.requiresProjectContext && projectContext ? (
+                <ActivePanelComponent {...projectContext} />
+              ) : (
+                <ActivePanelComponent />
+              )
+            )}
           </div>
         </div>
       </div>

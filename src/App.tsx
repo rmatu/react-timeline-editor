@@ -33,6 +33,8 @@ function App() {
     isError: isProjectError,
     currentProject,
     updateProjectName,
+    loadProject,
+    createProject,
   } = useProjectHydration();
 
   // Auto-save (enabled once project is loaded)
@@ -316,7 +318,16 @@ function App() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidepanel */}
-        <Sidepanel />
+        <Sidepanel
+          projectContext={{
+            currentProject: currentProject ? { id: currentProject.id, name: currentProject.name } : null,
+            hasPendingChanges,
+            onSwitchProject: loadProject,
+            onCreateProject: createProject,
+            onSaveProject: saveNow,
+            isLoading: isProjectLoading,
+          }}
+        />
 
         {/* Content Area - now takes full width since ContextPanel is an overlay */}
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">

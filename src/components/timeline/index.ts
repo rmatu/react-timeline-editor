@@ -9,3 +9,5 @@ export { ClipContent } from "./ClipContent";
 export { TrimHandle } from "./TrimHandle";
 export { GhostOutline } from "./GhostOutline";
 export { SnapGuide, snapGuideAtom, showSnapGuide, hideSnapGuide } from "./SnapGuide";
+export { MarqueeSelection } from "./MarqueeSelection";
+export { ToolModeToolbar } from "./ToolModeToolbar";

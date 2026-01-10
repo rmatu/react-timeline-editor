@@ -36,7 +36,7 @@ export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
   if (activeTextClips.length === 0) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    <div className="absolute inset-0 pointer-events-none select-none">
       {activeTextClips.map((clip) => {
         const track = tracks.get(clip.trackId);
         // Base content z-index + inverted track order

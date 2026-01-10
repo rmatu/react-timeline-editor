@@ -52,7 +52,7 @@ export function DurationHandle({
     <div
       {...bind()}
       className={cn(
-        "duration-handle absolute top-0 bottom-0 w-4 -ml-2 cursor-ew-resize group touch-none flex flex-col items-center pointer-events-auto",
+        "duration-handle absolute top-0 bottom-0 w-4 -ml-2 cursor-ew-resize group touch-none flex flex-col items-center pointer-events-auto select-none overflow-hidden",
         // Removed z-30 from container so line sits behind clips
         // Added z-50 to knob ensures it's always reachable
       )}
@@ -66,10 +66,10 @@ export function DurationHandle({
 
       {/* Handle Knob (Top) */}
       <div className={cn(
-        "absolute top-0 w-3 h-6 rounded-b-sm shadow-sm flex items-center justify-center transition-colors z-50",
+        "absolute top-0 w-3 h-6 rounded-b-sm shadow-sm flex items-center justify-center transition-colors z-50 select-none",
         isDragging ? "bg-blue-500 text-white" : "bg-zinc-700 text-zinc-400 group-hover:bg-blue-400 group-hover:text-white"
       )}>
-        <div className="w-0.5 h-3 bg-current opacity-50 rounded-full" />
+        <div className="w-0.5 h-3 bg-current opacity-50 rounded-full select-none" />
       </div>
     </div>
   );
