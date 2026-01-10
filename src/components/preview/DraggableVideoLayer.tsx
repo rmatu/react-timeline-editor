@@ -452,7 +452,6 @@ export function DraggableVideoLayer({
         ref={elementRef}
         className={cn(
           "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
-          "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
           isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
           dragMode && "z-[50]"
         )}

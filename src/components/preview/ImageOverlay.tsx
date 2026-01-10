@@ -41,7 +41,8 @@ export function ImageOverlay({ currentTime, containerRef }: ImageOverlayProps) {
       {activeStickerClips.map((clip) => {
         const track = tracks.get(clip.trackId);
         // Base content z-index + inverted track order (so track 0 is on top)
-        const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxTrackOrder - (track?.order ?? 0));
+        // Fallback to maxTrackOrder (bottom) if track is missing
+        const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxTrackOrder - (track?.order ?? maxTrackOrder));
         
         return (
           <DraggableImageItem

@@ -40,7 +40,8 @@ export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
       {activeTextClips.map((clip) => {
         const track = tracks.get(clip.trackId);
         // Base content z-index + inverted track order
-        const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxTrackOrder - (track?.order ?? 0));
+        // Fallback to maxTrackOrder (bottom) if track is missing
+        const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxTrackOrder - (track?.order ?? maxTrackOrder));
         
         return (
           <DraggableTextItem

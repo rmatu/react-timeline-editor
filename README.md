@@ -648,7 +648,7 @@ import {
 
 ### Z-Index Stacking
 
-The library uses standardized Z-index layers to ensuring predictable stacking contexts:
+The library uses standardized Z-index layers to ensure predictable stacking contexts:
 
 **Preview Order (Back to Front):**
 1.  **Track Content**: `Dynamic` (Based on track order)
