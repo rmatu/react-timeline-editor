@@ -2,8 +2,10 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { enableMapSet } from "immer";
 import { devtools } from "zustand/middleware";
-import type { Clip, Track } from "@/schemas";
+import type { Clip, Track, Transition, TransitionType } from "@/schemas";
 import type { Keyframe, KeyframeValue, EasingType } from "@/schemas/keyframe.schema";
+import { createTransition, DEFAULT_TRANSITION_DURATION } from "@/schemas/transition.schema";
+import { getMaxTransitionDuration } from "@/utils/transitions";
 import {
   DEFAULT_ZOOM,
   MIN_ZOOM,
@@ -195,6 +197,20 @@ interface TimelineActions {
   addKeyframeAtCurrentTime: (clipId: string, property: string, value: KeyframeValue, easing?: EasingType) => string;
   clearKeyframesForProperty: (clipId: string, property: string) => void;
   setKeyframesForProperty: (clipId: string, property: string, keyframes: Omit<Keyframe, "id">[]) => void;
+
+  // Transition actions
+  setClipTransition: (
+    clipId: string,
+    side: "in" | "out",
+    type: TransitionType,
+    duration?: number
+  ) => void;
+  updateClipTransition: (
+    clipId: string,
+    side: "in" | "out",
+    updates: Partial<Transition>
+  ) => void;
+  removeClipTransition: (clipId: string, side: "in" | "out") => void;
 }
 
 type TimelineStore = TimelineState & TimelineActions;
@@ -962,6 +978,71 @@ export const useTimelineStore = create<TimelineStore>()(
             state.clips.set(clipId, { ...clip, keyframes: newKeyframes } as Clip);
           }
         }),
+
+      // ========================================================================
+      // Transition Actions
+      // ========================================================================
+
+      setClipTransition: (clipId, side, type, duration) => {
+        get().saveToHistory();
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (!clip) return;
+
+          // Calculate max allowed duration
+          const maxDuration = getMaxTransitionDuration(clip, side, state.clips);
+          const actualDuration = Math.min(
+            duration ?? DEFAULT_TRANSITION_DURATION,
+            maxDuration
+          );
+
+          const transition = createTransition(type, actualDuration);
+          const transitionKey = side === "in" ? "transitionIn" : "transitionOut";
+
+          state.clips.set(clipId, {
+            ...clip,
+            [transitionKey]: transition,
+          } as Clip);
+        });
+      },
+
+      updateClipTransition: (clipId, side, updates) =>
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (!clip) return;
+
+          const transitionKey = side === "in" ? "transitionIn" : "transitionOut";
+          const existing = clip[transitionKey];
+          if (!existing) return;
+
+          // If updating duration, respect max
+          let newDuration = updates.duration ?? existing.duration;
+          if (updates.duration !== undefined) {
+            const maxDuration = getMaxTransitionDuration(clip, side, state.clips);
+            newDuration = Math.min(updates.duration, maxDuration);
+          }
+
+          state.clips.set(clipId, {
+            ...clip,
+            [transitionKey]: {
+              ...existing,
+              ...updates,
+              duration: newDuration,
+            },
+          } as Clip);
+        }),
+
+      removeClipTransition: (clipId, side) => {
+        get().saveToHistory();
+        set((state) => {
+          const clip = state.clips.get(clipId);
+          if (!clip) return;
+
+          const transitionKey = side === "in" ? "transitionIn" : "transitionOut";
+          const { [transitionKey]: _, ...rest } = clip;
+          state.clips.set(clipId, rest as Clip);
+        });
+      },
     })),
     { name: "timeline-store" }
   )

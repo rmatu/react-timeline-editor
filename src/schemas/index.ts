@@ -19,6 +19,18 @@ export type {
 } from "./clip.schema";
 
 export {
+  TransitionSchema,
+  TransitionTypeSchema,
+  TRANSITION_TYPES,
+  DEFAULT_TRANSITION_DURATION,
+  MIN_TRANSITION_DURATION,
+  MAX_TRANSITION_DURATION,
+  getTransitionInfo,
+  createTransition,
+} from "./transition.schema";
+export type { Transition, TransitionType } from "./transition.schema";
+
+export {
   TrackSchema,
   TrackTypeSchema,
   validateTrack,

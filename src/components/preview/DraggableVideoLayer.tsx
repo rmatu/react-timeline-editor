@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { VideoClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
+import { getTransitionState, getTransitionTransform, transitionTransformToCSS } from "@/utils/transitions";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import { Z_INDEX } from "@/constants/timeline.constants";
@@ -84,6 +85,28 @@ export function DraggableVideoLayer({
   const animated = useMemo(
     () => getAnimatedPropertiesAtTime(clip, currentTime),
     [clip, currentTime]
+  );
+
+  // Get transition state at current time
+  const transitionState = useMemo(
+    () => getTransitionState(clip, currentTime),
+    [clip, currentTime]
+  );
+
+  // Calculate transition transform
+  const transitionTransform = useMemo(() => {
+    if (!transitionState?.isActive) return null;
+    return getTransitionTransform(
+      transitionState.type,
+      transitionState.progress,
+      transitionState.side
+    );
+  }, [transitionState]);
+
+  // Convert to CSS properties
+  const transitionCSS = useMemo(
+    () => transitionTransform ? transitionTransformToCSS(transitionTransform) : null,
+    [transitionTransform]
   );
 
   // Check if clip is active (visible at current time)
@@ -443,6 +466,18 @@ export function DraggableVideoLayer({
     ? dragStartRef.current.startRotation + dragDelta.rotation
     : baseRotation;
 
+  // Apply transition effects to final values
+  const finalOpacity = transitionCSS 
+    ? animated.opacity * transitionCSS.opacity 
+    : animated.opacity;
+  
+  // Build transform string combining base transforms with transition transforms
+  const baseTransform = `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`;
+  const transitionTransformStr = transitionCSS?.transform && transitionCSS.transform !== "none" 
+    ? ` ${transitionCSS.transform}` 
+    : "";
+  const finalTransform = `${baseTransform}${transitionTransformStr}`;
+
   // Don't render if not in range
   if (!isActive) return null;
 
@@ -462,8 +497,9 @@ export function DraggableVideoLayer({
           // Use calculated dimensions for tight outline
           width: displayDimensions.width,
           height: displayDimensions.height,
-          transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
-          opacity: animated.opacity,
+          transform: finalTransform,
+          opacity: finalOpacity,
+          clipPath: transitionCSS?.clipPath,
         }}
         onMouseDown={handleMoveStart}
         onContextMenu={handleContextMenu}

@@ -20,6 +20,14 @@ A high-performance, touch-friendly React component library for video timeline ed
   - **Auto-Keyframing**: Automatically creates keyframes when you edit a property or drag an element in the preview
   - Multiple easing functions (linear, ease-in, ease-out, ease-in-out, custom cubic-bezier)
   - Real-time preview and WYSIWYG export with animated properties
+- **Clip Transitions** - Professional transition effects between clips
+  - **16 Transition Types**: Fade, dissolve, slide (4 directions), wipe (4 directions), zoom in/out, push (4 directions)
+  - **Drag & Drop Application**: Drag transitions from sidepanel onto clips
+  - **Smart Drop Detection**: Left side of clip applies "in" transition, right side applies "out"
+  - **Visual Timeline Indicators**: See transition zones directly on clips with icons and duration
+  - **Tabbed Property Editor**: Dedicated Transitions tab in clip properties panel
+  - **WYSIWYG Export**: Transitions render identically in preview and exported video
+  - **Customizable Duration**: Adjust transition duration with intelligent max limits
 - **Text Overlays** - Render text clips directly on video preview with positioning and styling
   - Drag to reposition, corner handles to scale, rotation handle above element
   - Edge handles to adjust text width and enable word wrapping

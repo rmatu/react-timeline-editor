@@ -40,6 +40,18 @@ export {
   findNearestGap,
 } from "./snapping";
 
+export {
+  getTransitionState,
+  isInTransition,
+  getEffectiveClipDuration,
+  getTransitionTransform,
+  applyTransitionToContext,
+  transitionTransformToCSS,
+  findAdjacentClips,
+  getMaxTransitionDuration,
+} from "./transitions";
+export type { TransitionState, TransitionTransform } from "./transitions";
+
 // Export utilities
 export { RenderEngine, exportToMp4 } from "./export";
 export type { RenderContext, VideoResources, RenderEngineOptions, ExportOptions } from "./export";

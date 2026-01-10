@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { KeyframeSchema } from "./keyframe.schema";
+import { TransitionSchema } from "./transition.schema";
 
 // Base clip schema with common properties
 const BaseClipSchema = z.object({
@@ -12,6 +13,9 @@ const BaseClipSchema = z.object({
   locked: z.boolean().default(false),
   muted: z.boolean().default(false),
   keyframes: z.array(KeyframeSchema).optional(), // Animation keyframes (optional, defaults to [])
+  // Transitions (optional)
+  transitionIn: TransitionSchema.optional(), // Transition at clip start
+  transitionOut: TransitionSchema.optional(), // Transition at clip end
 });
 
 // Video clip schema

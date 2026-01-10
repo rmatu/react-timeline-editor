@@ -4,6 +4,8 @@ import { TrimHandle } from "./TrimHandle";
 import { GhostOutline } from "./GhostOutline";
 import { ClipContent } from "./ClipContent";
 import { KeyframeMarkers } from "./KeyframeMarkers";
+import { TransitionIndicator } from "./TransitionIndicator";
+import { parseTransitionDragData, TRANSITION_DRAG_TYPE } from "@/components/sidepanel/panels/TransitionsPanel";
 import { useClipDrag } from "@/hooks/useClipDrag";
 import { useClipTrim } from "@/hooks/useClipTrim";
 import { cn } from "@/lib/utils";
@@ -33,8 +35,11 @@ export const Clip = memo(function Clip({
 }: ClipProps) {
   void _scrollX; // Used for potential future viewport optimizations
   const { isTrimming: isAnyTrimming, currentTime } = useTimelineStore();
+  const setClipTransition = useTimelineStore((s) => s.setClipTransition);
+  const saveToHistory = useTimelineStore((s) => s.saveToHistory);
 
   const [isHovered, setIsHovered] = useState(false);
+  const [isTransitionDragOver, setIsTransitionDragOver] = useState<"in" | "out" | null>(null);
 
   // Calculate clip dimensions
   const left = useMemo(
@@ -98,6 +103,67 @@ export const Clip = memo(function Clip({
     []
   );
 
+  // Handle transition drag over - determine which side based on cursor position
+  const handleTransitionDragOver = useCallback(
+    (e: React.DragEvent) => {
+      // Check for transition drag type (getData returns empty during dragover)
+      if (!e.dataTransfer.types.includes(TRANSITION_DRAG_TYPE)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Determine which side based on cursor position within the clip
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relativeX = e.clientX - rect.left;
+      const clipCenter = rect.width / 2;
+
+      if (relativeX < clipCenter) {
+        setIsTransitionDragOver("in");
+      } else {
+        setIsTransitionDragOver("out");
+      }
+    },
+    []
+  );
+
+  const handleTransitionDragLeave = useCallback(() => {
+    setIsTransitionDragOver(null);
+  }, []);
+
+  const handleTransitionDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const transitionData = parseTransitionDragData(e);
+      if (!transitionData) {
+        setIsTransitionDragOver(null);
+        return;
+      }
+
+      // Audio clips don't support visual transitions
+      if (clip.type === "audio") {
+        setIsTransitionDragOver(null);
+        return;
+      }
+
+      saveToHistory();
+
+      // Apply based on which side was highlighted or both
+      if (transitionData.side === "both") {
+        // Use the highlighted side from drag over
+        if (isTransitionDragOver === "in" || isTransitionDragOver === "out") {
+          setClipTransition(clip.id, isTransitionDragOver, transitionData.transitionType);
+        }
+      } else {
+        setClipTransition(clip.id, transitionData.side, transitionData.transitionType);
+      }
+
+      setIsTransitionDragOver(null);
+    },
+    [clip.id, clip.type, isTransitionDragOver, saveToHistory, setClipTransition]
+  );
+
   // Determine actual position (accounting for drag)
   const actualLeft = isDragging && dragPosition ? dragPosition.x : left;
   const actualTop = isDragging && dragPosition ? dragPosition.y : 0;
@@ -124,15 +190,17 @@ export const Clip = memo(function Clip({
         {...bindDrag()}
         className={cn(
           "clip absolute top-1 bottom-1 cursor-pointer overflow-hidden",
-          "border-2 transition-shadow",
+          "transition-shadow",
           isSelected
-            ? "border-blue-500 shadow-lg shadow-blue-500/20"
+            ? "border-2 border-blue-500 shadow-lg shadow-blue-500/20"
             : clip.type === "text"
-            ? "border-white/20 hover:border-white/40" // Text clips always have a subtle border
-            : "border-transparent hover:border-white/20",
+            ? "border-2 border-white/20 hover:border-white/40" // Text clips always have a subtle border
+            : "border-0 hover:border-2 hover:border-white/20", // No border by default, show on hover
           isDragging && "dragging opacity-80 shadow-xl z-50", // Increased z-index
           isTrimming && "z-20",
-          disabled && "cursor-not-allowed"
+          disabled && "cursor-not-allowed",
+          // Transition drop highlights
+          isTransitionDragOver && "ring-2 ring-purple-400"
         )}
         style={{
           left: actualLeft,
@@ -147,7 +215,25 @@ export const Clip = memo(function Clip({
         onDoubleClick={handleDoubleClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onDragOver={handleTransitionDragOver}
+        onDragLeave={handleTransitionDragLeave}
+        onDrop={handleTransitionDrop}
       >
+        {/* Transition drop zone indicator */}
+        {isTransitionDragOver && (
+          <div
+            className={cn(
+              "absolute top-0 bottom-0 w-1/2 pointer-events-none",
+              "bg-purple-400/20 border-2 border-purple-400 border-dashed",
+              isTransitionDragOver === "in" ? "left-0 rounded-l" : "right-0 rounded-r"
+            )}
+          >
+            <div className="absolute inset-0 flex items-center justify-center text-purple-300 text-xs font-medium">
+              {isTransitionDragOver === "in" ? "In" : "Out"}
+            </div>
+          </div>
+        )}
+
         {/* Clip content (type-specific rendering) */}
         <ClipContent clip={clip} width={width} isSelected={isSelected} />
 
@@ -213,6 +299,24 @@ export const Clip = memo(function Clip({
               // Select the clip when clicking a keyframe
               onSelect(clip.id, e.metaKey || e.ctrlKey || e.shiftKey);
             }}
+          />
+        )}
+
+        {/* Transition indicators - show when clip has transitions */}
+        {clip.transitionIn && (
+          <TransitionIndicator
+            clip={clip}
+            side="in"
+            zoomLevel={zoomLevel}
+            isSelected={isSelected}
+          />
+        )}
+        {clip.transitionOut && (
+          <TransitionIndicator
+            clip={clip}
+            side="out"
+            zoomLevel={zoomLevel}
+            isSelected={isSelected}
           />
         )}
       </div>

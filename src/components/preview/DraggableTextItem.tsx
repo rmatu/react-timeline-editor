@@ -1,7 +1,8 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { TextClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
+import { getTransitionState, getTransitionTransform, transitionTransformToCSS } from "@/utils/transitions";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -71,6 +72,28 @@ export function DraggableTextItem({ clip, currentTime, containerRef, zIndex }: D
 
   // Get animated properties at current time
   const animated = getAnimatedPropertiesAtTime(clip, currentTime);
+
+  // Get transition state at current time
+  const transitionState = useMemo(
+    () => getTransitionState(clip, currentTime),
+    [clip, currentTime]
+  );
+
+  // Calculate transition transform
+  const transitionTransform = useMemo(() => {
+    if (!transitionState?.isActive) return null;
+    return getTransitionTransform(
+      transitionState.type,
+      transitionState.progress,
+      transitionState.side
+    );
+  }, [transitionState]);
+
+  // Convert to CSS properties
+  const transitionCSS = useMemo(
+    () => transitionTransform ? transitionTransformToCSS(transitionTransform) : null,
+    [transitionTransform]
+  );
 
   // Start moving - use animated position to prevent jumping when keyframes exist
   const baseScale = animated.scale;
@@ -368,6 +391,18 @@ export function DraggableTextItem({ clip, currentTime, containerRef, zIndex }: D
     };
   }, [contextMenu]);
 
+  // Apply transition effects to final values
+  const finalOpacity = transitionCSS 
+    ? animated.opacity * transitionCSS.opacity 
+    : animated.opacity;
+  
+  // Build transform string combining base transforms with transition transforms
+  const baseTransform = `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`;
+  const transitionTransformStr = transitionCSS?.transform && transitionCSS.transform !== "none" 
+    ? ` ${transitionCSS.transform}` 
+    : "";
+  const finalTransform = `${baseTransform}${transitionTransformStr}`;
+
   return (
     <>
       <div
@@ -381,8 +416,9 @@ export function DraggableTextItem({ clip, currentTime, containerRef, zIndex }: D
           zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
           left: `${visualX}%`,
           top: `${visualY}%`,
-          transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
-          opacity: animated.opacity,
+          transform: finalTransform,
+          opacity: finalOpacity,
+          clipPath: transitionCSS?.clipPath,
           // Prevent width collapsing when positioned near container edges
           width: clip.maxWidth ? `${clip.maxWidth}px` : 'max-content',
         }}

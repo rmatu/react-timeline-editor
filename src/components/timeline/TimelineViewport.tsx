@@ -4,6 +4,7 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import { createTrack } from "@/schemas";
 import type { VideoClip, AudioClip, StickerClip } from "@/schemas";
 import { parseMediaDragData } from "@/components/sidepanel/panels/MediaLibraryPanel";
+import { TRANSITION_DRAG_TYPE } from "@/components/sidepanel/panels/TransitionsPanel";
 import { pixelsToTime } from "@/utils/time";
 import { MarqueeSelection } from "./MarqueeSelection";
 
@@ -47,6 +48,8 @@ export const TimelineViewport = forwardRef<HTMLDivElement, TimelineViewportProps
     // Note: getData() returns empty during dragover for security, so we check types instead
     const handleDragOver = useCallback((e: React.DragEvent) => {
       const types = e.dataTransfer.types;
+      // Ignore transition drags - those are handled by Clip component
+      if (types.includes(TRANSITION_DRAG_TYPE)) return;
       // Check if this looks like our media drag data
       if (types.includes('application/json') || types.includes('text/plain')) {
         e.preventDefault();
