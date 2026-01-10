@@ -67,6 +67,19 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
   // Get animated properties at current time
   const animated = getAnimatedPropertiesAtTime(clip, currentTime);
 
+  // Debug: log sticker positioning
+  useEffect(() => {
+    const container = containerRef.current;
+    const containerRect = container?.getBoundingClientRect();
+    console.log('[Preview] Sticker:', {
+      id: clip.id.slice(0, 8),
+      containerSize: containerRect ? { w: containerRect.width, h: containerRect.height } : null,
+      positionPercent: animated.position,
+      scale: animated.scale,
+      rotation: animated.rotation,
+    });
+  }, [clip.id, animated.position, animated.scale, animated.rotation, containerRef]);
+
   // Calculate clip-relative time for GIF animation
   const clipTime = currentTime - clip.startTime;
 

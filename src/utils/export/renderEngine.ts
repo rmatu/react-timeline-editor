@@ -11,10 +11,11 @@ import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { parseGIF, decompressFrames } from "gifuct-js";
 
 // Sticker size constraints (matches preview CSS max-w-[300px] max-h-[300px])
-// Preview uses 300px max in a ~1000px reference container = 30% of container
-// Scaled proportionally to export dimensions for WYSIWYG output
-const STICKER_REFERENCE_SIZE = 300;
-const STICKER_REFERENCE_CONTAINER = 1000;
+// Preview uses 300px max - to match WYSIWYG, we scale based on typical preview container width
+// For a 9:16 video in a typical preview viewport, the container is ~420px wide
+// So the sticker ratio is 300/420 ≈ 71% of the short dimension
+const STICKER_PREVIEW_MAX_SIZE = 300;
+const STICKER_PREVIEW_CONTAINER_WIDTH = 420;
 
 // GIF frame data for export
 interface GifFrameData {
@@ -320,11 +321,23 @@ export class RenderEngine {
   private renderStickerLayer(time: number): void {
     const stickerClips = this.getActiveClips<StickerClip>("sticker", time);
 
-    // Calculate max sticker dimension proportional to export resolution
-    // This matches preview's max-w-[300px] max-h-[300px] constraint scaled to canvas
-    const maxStickerDimension =
-      (STICKER_REFERENCE_SIZE / STICKER_REFERENCE_CONTAINER) *
-      Math.min(this.width, this.height);
+    // Calculate max sticker dimension to match preview's visual proportion
+    // Preview: 300px sticker in ~420px container = 71.4% of container width
+    // Export: Scale proportionally to maintain same visual ratio
+    // For 1080x1920 export: 300 * (1080/420) = 771px
+    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
+    const maxStickerDimension = STICKER_PREVIEW_MAX_SIZE * scaleFactor;
+
+    // Debug: log first frame only
+    if (time < 0.1) {
+      console.log('[RenderEngine] Sticker rendering debug:', {
+        canvasWidth: this.width,
+        canvasHeight: this.height,
+        scaleFactor,
+        maxStickerDimension,
+        stickerCount: stickerClips.length,
+      });
+    }
 
     for (const clip of stickerClips) {
       // Get animated properties for keyframe animations
@@ -336,6 +349,17 @@ export class RenderEngine {
       // Position (use animated position, percentage to pixels, centered)
       const x = (animated.position.x / 100) * this.width;
       const y = (animated.position.y / 100) * this.height;
+
+      // Debug: log sticker details for first frame
+      if (time < 0.1) {
+        console.log('[RenderEngine] Sticker:', {
+          id: clip.id.slice(0, 8),
+          positionPercent: animated.position,
+          positionPixels: { x, y },
+          scale: animated.scale,
+          rotation: animated.rotation,
+        });
+      }
 
       ctx.translate(x, y);
       ctx.rotate((animated.rotation * Math.PI) / 180);
