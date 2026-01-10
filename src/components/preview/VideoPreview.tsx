@@ -112,6 +112,13 @@ export function VideoPreview({
     [videoClips, currentTime, tracks]
   );
 
+  // Calculate max track order once for z-index strategy
+  const maxTrackOrder = useMemo(() => {
+    let max = 0;
+    tracks.forEach(t => { if (t.order > max) max = t.order; });
+    return max;
+  }, [tracks]);
+
 
 
   return (
@@ -174,9 +181,8 @@ export function VideoPreview({
             .filter(clip => tracks.get(clip.trackId)?.visible !== false)
             .map((clip) => {
               const track = tracks.get(clip.trackId);
-              let maxOrder = 0;
-              tracks.forEach(t => { if (t.order > maxOrder) maxOrder = t.order; });
-              const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxOrder - (track?.order ?? 0));
+              // Use pre-calculated maxTrackOrder. Fallback to maxTrackOrder (bottom) if track is missing.
+              const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxTrackOrder - (track?.order ?? maxTrackOrder));
 
               return (
                 <DraggableVideoLayer

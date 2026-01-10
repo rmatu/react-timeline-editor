@@ -364,11 +364,7 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
         className={cn(
           "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
           isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-          "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
-          isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-          dragMode && "z-[50]" // Using direct value as we can't easily interpolate dynamic class if using Tailwind's arbitrary values, but we could use style. Let's use style for z-index to be safe via constants? Or just mapped class. 
-          // The constants use 50. Tailwind usually has z-50.
-          // Let's stick with z-50 class if constant is 50, otherwise inline style.
+          dragMode && "z-[50]"
         )}
         style={{
           zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
