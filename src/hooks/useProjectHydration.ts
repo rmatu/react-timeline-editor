@@ -184,7 +184,7 @@ export function useProjectHydration(
       });
 
       // Load tracks, clips, and media library
-      loadTimeline(data.tracks, restoredClips, restoredMediaLibrary);
+      loadTimeline(data.tracks, restoredClips, restoredMediaLibrary, data.canvasBackground);
 
       // Set timeline configuration
       setDuration(data.duration);
