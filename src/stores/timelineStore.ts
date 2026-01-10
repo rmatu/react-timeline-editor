@@ -713,8 +713,20 @@ export const useTimelineStore = create<TimelineStore>()(
           if (state.historyIndex >= 0 && state.history.length > 0) {
             const entry = state.history[state.historyIndex];
             if (entry) {
-              state.tracks = new Map(entry.tracks);
-              state.clips = new Map(entry.clips);
+              state.tracks = new Map(
+                Array.from(entry.tracks.entries()).map(([id, track]) => [id, { ...track }])
+              );
+              state.clips = new Map(
+                Array.from(entry.clips.entries()).map(([id, clip]) => [
+                  id,
+                  {
+                    ...clip,
+                    keyframes: clip.keyframes?.map((kf) => ({ ...kf })),
+                    // Use type casting to access position safely, effectively checking for existence
+                    position: "position" in clip && (clip as any).position ? { ...(clip as any).position } : undefined,
+                  } as Clip
+                ])
+              );
             }
             // Move back in history for next undo
             if (state.historyIndex > 0) {
@@ -728,8 +740,20 @@ export const useTimelineStore = create<TimelineStore>()(
           if (state.historyIndex < state.history.length - 1) {
             state.historyIndex++;
             const entry = state.history[state.historyIndex];
-            state.tracks = new Map(entry.tracks);
-            state.clips = new Map(entry.clips);
+            state.tracks = new Map(
+              Array.from(entry.tracks.entries()).map(([id, track]) => [id, { ...track }])
+            );
+            state.clips = new Map(
+              Array.from(entry.clips.entries()).map(([id, clip]) => [
+                id,
+                {
+                  ...clip,
+                  keyframes: clip.keyframes?.map((kf) => ({ ...kf })),
+                  // Use type casting to access position safely, effectively checking for existence
+                  position: "position" in clip && (clip as any).position ? { ...(clip as any).position } : undefined,
+                } as Clip
+              ])
+            );
           }
         }),
 
