@@ -7,6 +7,7 @@ import { pixelsToTime } from "@/utils/time";
 import { TRACK_COLORS } from "@/constants/timeline.constants";
 import type { Track as TrackType, Clip, VideoClip, AudioClip, StickerClip } from "@/schemas";
 import { parseMediaDragData } from "@/components/sidepanel/panels/MediaLibraryPanel";
+import { TRANSITION_DRAG_TYPE } from "@/components/sidepanel/panels/TransitionsPanel";
 
 interface TrackProps {
   track: TrackType;
@@ -58,6 +59,8 @@ export const Track = memo(function Track({
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
       const types = e.dataTransfer.types;
+      // Ignore transition drags - those are handled by Clip component
+      if (types.includes(TRANSITION_DRAG_TYPE)) return;
       // Check if this looks like our media drag data (we'll verify the actual type in drop)
       if (types.includes('application/json') || types.includes('text/plain')) {
         e.preventDefault();

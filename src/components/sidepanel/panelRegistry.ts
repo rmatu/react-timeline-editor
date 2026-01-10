@@ -1,6 +1,6 @@
 import React from 'react';
-import { Film, Subtitles, FolderOpen, type LucideIcon } from 'lucide-react';
-import { MediaLibraryPanel, SRTImportPanel, ProjectsPanel } from './panels';
+import { Film, Subtitles, FolderOpen, Sparkles, type LucideIcon } from 'lucide-react';
+import { MediaLibraryPanel, SRTImportPanel, ProjectsPanel, TransitionsPanel } from './panels';
 
 export interface SidepanelConfig {
   id: string;
@@ -32,6 +32,12 @@ export const panelRegistry: SidepanelConfig[] = [
     icon: Subtitles,
     label: 'Subtitles',
     component: SRTImportPanel,
+  },
+  {
+    id: 'transitions',
+    icon: Sparkles,
+    label: 'Transitions',
+    component: TransitionsPanel,
   },
 ];
 

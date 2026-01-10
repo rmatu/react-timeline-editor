@@ -61,6 +61,26 @@ The core data structures are defined in `src/schemas/index.ts`.
     -   **Text clips**: `position`, `fontSize`, `color`
     -   **Sticker clips**: `position`
 
+### Transitions (`Transition`)
+-   Visual effects for clip entry/exit, defined in `src/schemas/transition.schema.ts`.
+-   Clips have optional `transitionIn` and `transitionOut` properties.
+-   **Properties**:
+    -   `type`: Transition effect type.
+    -   `duration`: Transition duration in seconds (default 0.5s, max half of clip duration).
+    -   `easing`: Easing function for the transition.
+    -   `bezier`: Optional custom cubic bezier curve.
+-   **Transition Types** (16 total):
+    -   **Basic**: `fade`, `dissolve`
+    -   **Slide**: `slide-left`, `slide-right`, `slide-up`, `slide-down`
+    -   **Wipe**: `wipe-left`, `wipe-right`, `wipe-up`, `wipe-down`
+    -   **Zoom**: `zoom-in`, `zoom-out`
+    -   **Push**: `push-left`, `push-right`, `push-up`, `push-down`
+-   **Utilities** (`src/utils/transitions.ts`):
+    -   `getTransitionState`: Calculates active transition and progress at a given time.
+    -   `getTransitionTransform`: Computes transform values (translate, scale, opacity, clipPath).
+    -   `transitionTransformToCSS`: Converts transforms to CSS for preview rendering.
+    -   `applyTransitionToContext`: Applies transforms to Canvas2D context for export.
+
 ## 3. Component Hierarchy
 
 ### Root (`App.tsx`)
@@ -80,6 +100,11 @@ Extensible panel system for secondary tools.
         -   List, create, rename, duplicate, and delete projects.
         -   Switch between projects with unsaved changes confirmation.
         -   Shows project metadata (creation date, last modified).
+    -   **`TransitionsPanel`**: Drag-and-drop transition library.
+        -   Displays 16 transition types organized by category (Basic, Slide, Wipe, Zoom, Push).
+        -   Drag transitions onto clips to apply (left side = in, right side = out).
+        -   Custom MIME type (`application/x-timeline-transition`) for precise drop targeting.
+        -   Visual feedback on clips shows which side will receive the transition.
 
 ### Preview Engine (`src/components/preview`)
 Responsible for WYSIWYG playback and rendering.
@@ -134,6 +159,12 @@ Responsible for manipulation and editing.
                 -   **Smart Selection**: Clicking a clip selects it and seeks playhead to clip start **only if** playhead is not already within the clip's time range. This prevents disruptive jumps when selecting clips you're already viewing.
                 -   **`TrimHandle`**: Layouts for left/right edge trimming.
                 -   **`KeyframeMarkers`**: Renders keyframe diamonds at the bottom of clips, draggable for timing adjustments.
+                -   **`TransitionIndicator`**: Visual indicator for clip transitions on timeline.
+                    -   Shows transition duration as a colored zone at clip edges.
+                    -   Displays transition type icon and remove button on hover.
+                -   **Transition Drop Target**: Clips accept transition drops from TransitionsPanel.
+                    -   Detects drop position (left half = in, right half = out).
+                    -   Visual highlight shows which side will receive the transition.
 
 ### Properties Panel (`src/components/properties`)
 Context-sensitive panel for editing selected clip properties.
@@ -150,6 +181,16 @@ Context-sensitive panel for editing selected clip properties.
     -   **Unified Transform UI**: Uses `KeyframeEditor` for Position, Scale, Rotation, and Opacity to match Video properties.
     -   **Width Control**: Dedicated control for `maxWidth` (word wrapping).
     -   All edits tracked in history for undo/redo support.
+-   **`StickerProperties`**: Controls for sticker/image clips (transform, animation).
+-   **Tabbed Interface**: All property panels use shadcn Tabs for organization.
+    -   **Properties Tab**: Main settings, transform controls, keyframe animation.
+    -   **Transitions Tab**: Dedicated `TransitionEditor` for in/out transitions.
+-   **`TransitionEditor`**: Unified transition editing component.
+    -   Separate sections for "In" and "Out" transitions.
+    -   Type selection dropdown grouped by category.
+    -   Duration slider with intelligent max (half of clip duration).
+    -   Easing selection (currently auto-set based on transition type).
+    -   Add/remove transition buttons with visual feedback.
 -   **`KeyframeEditor`**: Universal keyframe editor component.
     -   Displays current value of any animatable property.
     -   Shows diamond icon to add/indicate keyframes at current playhead position.

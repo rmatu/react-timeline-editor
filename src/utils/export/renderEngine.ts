@@ -4,10 +4,12 @@
  * Mirrors VideoPreview.tsx rendering logic to ensure WYSIWYG export.
  * Renders all layers (video, text, stickers) to canvas for frame-accurate export.
  * Supports keyframe animations via the same interpolation logic as preview.
+ * Supports transitions (fade, slide, wipe, etc.) between clips.
  */
 
 import type { Clip, Track, VideoClip, TextClip, StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
+import { getTransitionState, getTransitionTransform, applyTransitionToContext } from "@/utils/transitions";
 import { parseGIF, decompressFrames } from "gifuct-js";
 import { CanvasBackground } from "@/stores/timelineStore";
 
@@ -383,6 +385,9 @@ export class RenderEngine {
     // Get animated properties for keyframe animations
     const animated = getAnimatedPropertiesAtTime(clip, time);
 
+    // Get transition state
+    const transitionState = getTransitionState(clip, time);
+
     // Calculate seek time with playback rate
     const seekTime = clip.sourceStartTime + (time - clip.startTime) * clip.playbackRate;
 
@@ -403,6 +408,22 @@ export class RenderEngine {
     this.ctx.save();
     this.ctx.globalAlpha = animated.opacity;
 
+    // Apply transition transform if active
+    let transitionCleanup: (() => void) | null = null;
+    if (transitionState?.isActive) {
+      const transitionTransform = getTransitionTransform(
+        transitionState.type,
+        transitionState.progress,
+        transitionState.side
+      );
+      transitionCleanup = applyTransitionToContext(
+        this.ctx,
+        transitionTransform,
+        this.width,
+        this.height
+      );
+    }
+
     // Apply transforms around video position (center of video at position)
     this.ctx.translate(x, y);
     this.ctx.scale(animated.scale, animated.scale);
@@ -410,6 +431,9 @@ export class RenderEngine {
 
     // Draw video centered on the transformed origin
     this.ctx.drawImage(vid, -w / 2, -h / 2, w, h);
+
+    // Cleanup transition if applied
+    if (transitionCleanup) transitionCleanup();
     this.ctx.restore();
   }
 
@@ -426,6 +450,25 @@ export class RenderEngine {
     const ctx = this.ctx;
     ctx.save();
 
+    // Get transition state
+    const transitionState = getTransitionState(clip, time);
+
+    // Apply transition transform if active
+    let transitionCleanup: (() => void) | null = null;
+    if (transitionState?.isActive) {
+      const transitionTransform = getTransitionTransform(
+        transitionState.type,
+        transitionState.progress,
+        transitionState.side
+      );
+      transitionCleanup = applyTransitionToContext(
+        ctx,
+        transitionTransform,
+        this.width,
+        this.height
+      );
+    }
+
     // Position (use animated position, percentage to pixels, centered)
     const x = (animated.position.x / 100) * this.width;
     const y = (animated.position.y / 100) * this.height;
@@ -433,7 +476,7 @@ export class RenderEngine {
     ctx.translate(x, y);
     ctx.rotate((animated.rotation * Math.PI) / 180);
     ctx.scale(animated.scale, animated.scale);
-    ctx.globalAlpha = animated.opacity;
+    ctx.globalAlpha *= animated.opacity;
 
     // Check if this is an animated GIF with extracted frames
     const gifData = this.resources!.gifFrames.get(clip.id);
@@ -499,6 +542,8 @@ export class RenderEngine {
       }
     }
 
+    // Cleanup transition if applied
+    if (transitionCleanup) transitionCleanup();
     ctx.restore();
   }
 
@@ -509,6 +554,9 @@ export class RenderEngine {
     // Get animated properties for keyframe animations
     const animated = getAnimatedPropertiesAtTime(clip, time);
 
+    // Get transition state
+    const transitionState = getTransitionState(clip, time);
+
     const ctx = this.ctx;
 
     // Position (use animated position, percentage to pixels)
@@ -518,8 +566,24 @@ export class RenderEngine {
 
     ctx.save();
 
+    // Apply transition transform if active
+    let transitionCleanup: (() => void) | null = null;
+    if (transitionState?.isActive) {
+      const transitionTransform = getTransitionTransform(
+        transitionState.type,
+        transitionState.progress,
+        transitionState.side
+      );
+      transitionCleanup = applyTransitionToContext(
+        ctx,
+        transitionTransform,
+        this.width,
+        this.height
+      );
+    }
+
     // Apply keyframe animations (opacity, scale, rotation)
-    ctx.globalAlpha = animated.opacity;
+    ctx.globalAlpha *= animated.opacity;
     ctx.translate(x, y);
     ctx.scale(animated.scale, animated.scale);
     ctx.rotate((animated.rotation * Math.PI) / 180);
@@ -608,6 +672,8 @@ export class RenderEngine {
       ctx.fillText(lines[i], anchorOffsetX, lineY);
     }
 
+    // Cleanup transition if applied
+    if (transitionCleanup) transitionCleanup();
     ctx.restore();
   }
 

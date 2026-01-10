@@ -1,8 +1,9 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
+import { getTransitionState, getTransitionTransform, transitionTransformToCSS } from "@/utils/transitions";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import { useGifAnimation } from "@/hooks/useGifAnimation";
@@ -73,6 +74,28 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
 
   // Get animated properties at current time
   const animated = getAnimatedPropertiesAtTime(clip, currentTime);
+
+  // Get transition state at current time
+  const transitionState = useMemo(
+    () => getTransitionState(clip, currentTime),
+    [clip, currentTime]
+  );
+
+  // Calculate transition transform
+  const transitionTransform = useMemo(() => {
+    if (!transitionState?.isActive) return null;
+    return getTransitionTransform(
+      transitionState.type,
+      transitionState.progress,
+      transitionState.side
+    );
+  }, [transitionState]);
+
+  // Convert to CSS properties
+  const transitionCSS = useMemo(
+    () => transitionTransform ? transitionTransformToCSS(transitionTransform) : null,
+    [transitionTransform]
+  );
 
   // Calculate clip-relative time for GIF animation
   const clipTime = currentTime - clip.startTime;
@@ -357,6 +380,18 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
     }
   }, [clip.isAnimated, gifCanvas, gifLoaded, isPlaying, clipTime]);
 
+  // Apply transition effects to final values
+  const finalOpacity = transitionCSS 
+    ? animated.opacity * transitionCSS.opacity 
+    : animated.opacity;
+  
+  // Build transform string combining base transforms with transition transforms
+  const baseTransform = `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`;
+  const transitionTransformStr = transitionCSS?.transform && transitionCSS.transform !== "none" 
+    ? ` ${transitionCSS.transform}` 
+    : "";
+  const finalTransform = `${baseTransform}${transitionTransformStr}`;
+
   return (
     <>
       <div
@@ -371,8 +406,9 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
           left: `${visualX}%`,
           top: `${visualY}%`,
           width: 'max-content', // Prevent shrink-to-fit when positioned outside container
-          transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
-          opacity: animated.opacity,
+          transform: finalTransform,
+          opacity: finalOpacity,
+          clipPath: transitionCSS?.clipPath,
         }}
         onMouseDown={handleMoveStart}
         onContextMenu={handleContextMenu}
