@@ -1,15 +1,16 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
-import type { StickerClip } from "@/schemas";
+import type { VideoClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
-import { useGifAnimation } from "@/hooks/useGifAnimation";
 
-interface DraggableImageItemProps {
-  clip: StickerClip;
+interface DraggableVideoLayerProps {
+  clip: VideoClip;
   currentTime: number;
+  isPlaying: boolean;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  onTimeUpdate: (time: number) => void;
 }
 
 type DragMode = "move" | "scale" | "rotate" | null;
@@ -29,20 +30,30 @@ interface DragState {
 }
 
 /**
- * A sticker/image item that can be selected, dragged, scaled, and rotated within the preview.
- * Supports animated GIFs with synchronized playback.
+ * A video layer that can be selected, dragged, scaled, and rotated within the preview.
+ * Calculates actual video dimensions to provide a tight selection outline.
  */
-export function DraggableImageItem({ clip, currentTime, containerRef }: DraggableImageItemProps) {
+export function DraggableVideoLayer({
+  clip,
+  currentTime,
+  isPlaying,
+  containerRef,
+  onTimeUpdate,
+}: DraggableVideoLayerProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
   const updateClip = useTimelineStore((state) => state.updateClip);
   const saveToHistory = useTimelineStore((state) => state.saveToHistory);
   const removeClip = useTimelineStore((state) => state.removeClip);
-  const isPlaying = useTimelineStore((state) => state.isPlaying);
+  const tracks = useTimelineStore((state) => state.tracks);
 
   const isSelected = selectedClipIds.includes(clip.id);
   const elementRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Track intrinsic video dimensions
+  const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 });
+  
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -65,21 +76,118 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
   });
 
   // Get animated properties at current time
-  const animated = getAnimatedPropertiesAtTime(clip, currentTime);
-
-  // Calculate clip-relative time for GIF animation
-  const clipTime = currentTime - clip.startTime;
-
-  // For animated GIFs, use the animation hook
-  const { canvas: gifCanvas, isLoaded: gifLoaded } = useGifAnimation(
-    clip.isAnimated ? clip.assetUrl : null,
-    isPlaying,
-    clipTime
+  const animated = useMemo(
+    () => getAnimatedPropertiesAtTime(clip, currentTime),
+    [clip, currentTime]
   );
+
+  // Check if clip is active (visible at current time)
+  const isActive = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
+  const trackMuted = tracks.get(clip.trackId)?.muted ?? false;
 
   // Base values for transforms
   const baseScale = animated.scale;
   const baseRotation = animated.rotation;
+
+  // Handle video metadata loaded
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    if (video) {
+      setVideoDimensions({
+        width: video.videoWidth,
+        height: video.videoHeight,
+      });
+    }
+  }, []);
+
+  // Force re-calculation when container resizes
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  // Calculate display dimensions based on container and video aspect ratio
+  const displayDimensions = useMemo(() => {
+    const container = containerRef.current;
+    if (!container || videoDimensions.width === 0 || videoDimensions.height === 0) {
+      return { width: 200, height: 150 }; // Fallback
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Use containerSize in dependency array to trigger recalculation on resize
+    // (even though we read from getBoundingClientRect for sync accuracy)
+    void containerSize; 
+
+    // Calculate contain-mode dimensions (like object-fit: contain)
+    const videoAspect = videoDimensions.width / videoDimensions.height;
+    const containerAspect = containerWidth / containerHeight;
+
+    let width: number, height: number;
+
+    if (containerAspect > videoAspect) {
+      // Container is wider - constrain by height
+      height = containerHeight;
+      width = height * videoAspect;
+    } else {
+      // Container is taller - constrain by width
+      width = containerWidth;
+      height = width / videoAspect;
+    }
+
+    return { width, height };
+  }, [containerRef, videoDimensions, containerSize]); // Added containerSize dependency
+
+  // Video synchronization effect
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Always mute video element, audio is handled by AudioLayer
+    video.muted = true;
+    video.playbackRate = clip.playbackRate;
+
+    if (isActive && isPlaying) {
+      video.play().catch(() => {
+        // Autoplay restrictions
+      });
+    } else {
+      video.pause();
+    }
+
+    // Time sync
+    const targetVideoTime = clip.sourceStartTime + (currentTime - clip.startTime) * clip.playbackRate;
+    const timeDiff = Math.abs(video.currentTime - targetVideoTime);
+
+    if (!isPlaying || timeDiff > 0.2) {
+      if (Number.isFinite(targetVideoTime)) {
+        video.currentTime = targetVideoTime;
+      }
+    }
+  }, [isActive, isPlaying, clip, currentTime, trackMuted]);
+
+  const handleTimeUpdate = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (!isActive || !isPlaying) return;
+    const video = e.currentTarget;
+    const timelineTime = clip.startTime + (video.currentTime - clip.sourceStartTime);
+    onTimeUpdate(timelineTime);
+  }, [isActive, isPlaying, clip.startTime, clip.sourceStartTime, onTimeUpdate]);
 
   // Context menu actions
   const handleFitToScreen = useCallback(() => {
@@ -228,7 +336,6 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
 
     const handleMouseUp = () => {
       const { mode, startPosX, startPosY, startScale, startRotation } = dragStartRef.current;
-      // Use ref to get latest delta values (avoids stale closure issue)
       const delta = dragDeltaRef.current;
 
       const hasKeyframesFor = (property: string) =>
@@ -295,24 +402,8 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
     ? dragStartRef.current.startRotation + dragDelta.rotation
     : baseRotation;
 
-  // For animated GIFs, we need to update when the canvas changes
-  const [gifDataUrl, setGifDataUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (clip.isAnimated && gifCanvas && gifLoaded) {
-      // Update data URL when canvas is available
-      const updateFrame = () => {
-        setGifDataUrl(gifCanvas.toDataURL());
-      };
-      updateFrame();
-
-      // Set up interval to capture frames during playback
-      if (isPlaying) {
-        const interval = setInterval(updateFrame, 50); // ~20fps update
-        return () => clearInterval(interval);
-      }
-    }
-  }, [clip.isAnimated, gifCanvas, gifLoaded, isPlaying, clipTime]);
+  // Don't render if not in range
+  if (!isActive) return null;
 
   return (
     <>
@@ -326,29 +417,25 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
         style={{
           left: `${visualX}%`,
           top: `${visualY}%`,
-          width: 'max-content', // Prevent shrink-to-fit when positioned outside container
+          // Use calculated dimensions for tight outline
+          width: displayDimensions.width,
+          height: displayDimensions.height,
           transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
           opacity: animated.opacity,
         }}
         onMouseDown={handleMoveStart}
         onContextMenu={handleContextMenu}
       >
-        {/* Image content */}
-        {clip.isAnimated && gifDataUrl ? (
-          <img
-            src={gifDataUrl}
-            alt=""
-            className="object-contain pointer-events-none block max-w-[300px] max-h-[300px]"
-            draggable={false}
-          />
-        ) : (
-          <img
-            src={clip.assetUrl}
-            alt=""
-            className="object-contain pointer-events-none block max-w-[300px] max-h-[300px]"
-            draggable={false}
-          />
-        )}
+        {/* Video element - fills the wrapper exactly */}
+        <video
+          ref={videoRef}
+          src={clip.sourceUrl}
+          className="w-full h-full rounded-lg pointer-events-none object-contain"
+          preload="auto"
+          playsInline
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+        />
 
         {/* Selection handles - only show when selected */}
         {isSelected && (

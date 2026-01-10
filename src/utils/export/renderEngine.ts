@@ -10,6 +10,13 @@ import type { Clip, Track, VideoClip, TextClip, StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { parseGIF, decompressFrames } from "gifuct-js";
 
+// Sticker size constraints (matches preview CSS max-w-[300px] max-h-[300px])
+// Preview uses 300px max - to match WYSIWYG, we scale based on typical preview container width
+// For a 9:16 video in a typical preview viewport, the container is ~420px wide
+// So the sticker ratio is 300/420 ≈ 71% of the short dimension
+const STICKER_PREVIEW_MAX_SIZE = 300;
+const STICKER_PREVIEW_CONTAINER_WIDTH = 420;
+
 // GIF frame data for export
 interface GifFrameData {
   frames: ImageData[];
@@ -242,7 +249,7 @@ export class RenderEngine {
       const trackA = this.tracks.get(a.trackId);
       const trackB = this.tracks.get(b.trackId);
       // Higher order = later in render = on top
-      return (trackB?.order ?? 999) - (trackA?.order ?? 999);
+      return (trackA?.order ?? 999) - (trackB?.order ?? 999);
     });
 
     for (const clip of videoClips) {
@@ -259,26 +266,26 @@ export class RenderEngine {
       // Use requestVideoFrameCallback if available for frame-accurate timing
       await this.seekVideoToTime(vid, seekTime);
 
-      // Draw video maintaining aspect ratio (contain mode)
-      const scale = Math.min(this.width / vid.videoWidth, this.height / vid.videoHeight);
-      const w = vid.videoWidth * scale;
-      const h = vid.videoHeight * scale;
-      const x = (this.width - w) / 2;
-      const y = (this.height - h) / 2;
+      // Calculate base video dimensions (contain mode)
+      const baseScale = Math.min(this.width / vid.videoWidth, this.height / vid.videoHeight);
+      const w = vid.videoWidth * baseScale;
+      const h = vid.videoHeight * baseScale;
+
+      // Position based on animated position (percentage to pixels, centered on point)
+      const x = (animated.position.x / 100) * this.width;
+      const y = (animated.position.y / 100) * this.height;
 
       // Apply keyframe animations (opacity, scale, rotation)
       this.ctx.save();
       this.ctx.globalAlpha = animated.opacity;
 
-      // Apply scale and rotation transforms around center
-      const centerX = x + w / 2;
-      const centerY = y + h / 2;
-      this.ctx.translate(centerX, centerY);
+      // Apply transforms around video position (center of video at position)
+      this.ctx.translate(x, y);
       this.ctx.scale(animated.scale, animated.scale);
       this.ctx.rotate((animated.rotation * Math.PI) / 180);
-      this.ctx.translate(-centerX, -centerY);
 
-      this.ctx.drawImage(vid, x, y, w, h);
+      // Draw video centered on the transformed origin
+      this.ctx.drawImage(vid, -w / 2, -h / 2, w, h);
       this.ctx.restore();
     }
   }
@@ -314,6 +321,12 @@ export class RenderEngine {
   private renderStickerLayer(time: number): void {
     const stickerClips = this.getActiveClips<StickerClip>("sticker", time);
 
+    // Calculate max sticker dimension to match preview's visual proportion
+    // Preview: 300px sticker in ~420px container = 71.4% of container width
+    // Export: Scale proportionally to maintain same visual ratio
+    // For 1080x1920 export: 300 * (1080/420) = 771px
+    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
+
     for (const clip of stickerClips) {
       // Get animated properties for keyframe animations
       const animated = getAnimatedPropertiesAtTime(clip, time);
@@ -333,6 +346,20 @@ export class RenderEngine {
       // Check if this is an animated GIF with extracted frames
       const gifData = this.resources!.gifFrames.get(clip.id);
       if (gifData && clip.isAnimated) {
+        // Calculate display dimensions to match preview proportions
+        // Preview uses max-w-[300px] max-h-[300px] CSS constraint
+        // First, calculate base size in "preview space" (constrained to 300px max)
+        let baseW = gifData.width;
+        let baseH = gifData.height;
+        if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
+          const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
+          baseW *= constrainScale;
+          baseH *= constrainScale;
+        }
+        // Then scale to export dimensions
+        const w = baseW * scaleFactor;
+        const h = baseH * scaleFactor;
+
         // Calculate which frame to show based on clip-relative time
         const clipTimeMs = (time - clip.startTime) * 1000;
         const loopTime = clipTimeMs >= 0 ? clipTimeMs % gifData.totalDuration : 0;
@@ -348,7 +375,7 @@ export class RenderEngine {
           }
         }
 
-        // Draw the GIF frame
+        // Draw the GIF frame at constrained dimensions
         const frameData = gifData.frames[frameIndex];
         if (frameData) {
           // Create a temp canvas to convert ImageData to drawable image
@@ -358,14 +385,25 @@ export class RenderEngine {
           const tempCtx = tempCanvas.getContext("2d");
           if (tempCtx) {
             tempCtx.putImageData(frameData, 0, 0);
-            ctx.drawImage(tempCanvas, -gifData.width / 2, -gifData.height / 2);
+            ctx.drawImage(tempCanvas, -w / 2, -h / 2, w, h);
           }
         }
       } else {
-        // Static image
+        // Static image with proportional scaling to match preview
         const img = this.resources!.stickerImages.get(clip.id);
         if (img) {
-          ctx.drawImage(img, -img.width / 2, -img.height / 2);
+          // Calculate base size in "preview space" (constrained to 300px max)
+          let baseW = img.width;
+          let baseH = img.height;
+          if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
+            const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
+            baseW *= constrainScale;
+            baseH *= constrainScale;
+          }
+          // Scale to export dimensions
+          const w = baseW * scaleFactor;
+          const h = baseH * scaleFactor;
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
         }
       }
 
@@ -427,6 +465,9 @@ export class RenderEngine {
   private renderTextLayer(time: number): void {
     const textClips = this.getActiveClips<TextClip>("text", time);
 
+    // Scale factor to match preview's visual proportion (same as stickers)
+    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
+
     for (const clip of textClips) {
       // Get animated properties for keyframe animations
       const animated = getAnimatedPropertiesAtTime(clip, time);
@@ -446,8 +487,11 @@ export class RenderEngine {
       ctx.scale(animated.scale, animated.scale);
       ctx.rotate((animated.rotation * Math.PI) / 180);
 
-      // Use animated fontSize and color
-      const fontSize = animated.fontSize ?? clip.fontSize;
+      // Use animated fontSize and color, scaled to match preview proportion
+      // Preview: fontSize in ~420px container
+      // Export: scale fontSize proportionally to canvas size
+      const baseFontSize = animated.fontSize ?? clip.fontSize;
+      const fontSize = baseFontSize * scaleFactor;
       const color = animated.color ?? clip.color;
       const lineHeight = fontSize * 1.2;
 
@@ -459,8 +503,11 @@ export class RenderEngine {
       ctx.textAlign = clip.textAlign;
       ctx.textBaseline = "middle";
 
-      // Wrap text into lines based on maxWidth
-      const lines = this.wrapText(ctx, clip.content, clip.maxWidth ?? undefined);
+      // Scale maxWidth to match preview proportion (if set)
+      const scaledMaxWidth = clip.maxWidth ? clip.maxWidth * scaleFactor : undefined;
+
+      // Wrap text into lines based on scaled maxWidth
+      const lines = this.wrapText(ctx, clip.content, scaledMaxWidth);
       const totalHeight = lines.length * lineHeight;
 
       // Measure max line width for alignment and background
@@ -476,8 +523,8 @@ export class RenderEngine {
 
       let anchorOffsetX = 0;
 
-      // Effective width is either the explicit maxWidth or the actual content width
-      const effectiveWidth = clip.maxWidth ?? maxLineWidth;
+      // Effective width is either the scaled maxWidth or the actual content width
+      const effectiveWidth = scaledMaxWidth ?? maxLineWidth;
 
       switch (clip.textAlign) {
         case "left":
@@ -498,7 +545,8 @@ export class RenderEngine {
 
       // Background (if set)
       if (clip.backgroundColor) {
-        const padding = 8;
+        // Scale padding to match preview proportion
+        const padding = 8 * scaleFactor;
         // Use effective width for background too
         const bgW = effectiveWidth + padding * 2;
         const bgH = totalHeight + padding;
@@ -509,11 +557,11 @@ export class RenderEngine {
         ctx.fillStyle = color;
       }
 
-      // Shadow (when no background) - matches TextOverlay.tsx
+      // Shadow (when no background) - matches TextOverlay.tsx, scaled proportionally
       if (!clip.backgroundColor) {
         ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetY = 2;
+        ctx.shadowBlur = 4 * scaleFactor;
+        ctx.shadowOffsetY = 2 * scaleFactor;
       }
 
       // Draw each line, vertically centered around origin

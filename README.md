@@ -39,6 +39,7 @@ A high-performance, touch-friendly React component library for video timeline ed
   - **Hardware Acceleration**: Up to 10x faster export using WebCodecs (GPU)
   - **Software Fallback**: Robust FFmpeg WASM encoding for compatibility
   - **Customizable**: Configurable resolution (up to 4K), FPS (up to 60), and quality
+  - **WYSIWYG Scaling**: Proportional scaling system ensures preview matches export output exactly
 - **Video Thumbnails** - Dynamic visual timeline with robust, generated frame previews for video clips
 - **Undo/Redo** - Comprehensive history management with optimized tracking for all editing operations
   - All clip/track operations (add, remove, move, trim, split, merge)
@@ -522,6 +523,32 @@ const opacity = getPropertyAtTime(
 const animated = getAnimatedPropertiesAtTime(clip, currentTime);
 console.log(animated.opacity, animated.scale, animated.rotation);
 ```
+
+#### Export Scaling System
+
+The export engine uses a proportional scaling system to ensure WYSIWYG output across different resolutions:
+
+```tsx
+// Reference dimensions
+const STICKER_PREVIEW_MAX_SIZE = 300;        // Preview CSS max constraint
+const STICKER_PREVIEW_CONTAINER_WIDTH = 420; // Typical preview container width
+
+// Scale factor calculation in renderEngine.ts
+const scaleFactor = Math.min(canvasWidth, canvasHeight) / STICKER_PREVIEW_CONTAINER_WIDTH;
+
+// Applied to:
+// - Sticker dimensions: 300px → 771px at 1080p
+// - Text font size: 24px → 62px at 1080p
+// - Text maxWidth, padding, shadows: all scaled proportionally
+// - Positions remain percentage-based (inherently proportional)
+```
+
+**Examples:**
+- **720p (720×1280)**: `scaleFactor = 1.71` → 24px font becomes 41px
+- **1080p (1080×1920)**: `scaleFactor = 2.57` → 24px font becomes 62px
+- **4K (2160×3840)**: `scaleFactor = 5.14` → 24px font becomes 123px
+
+This ensures that elements maintain the same visual proportion relative to the frame at any export resolution.
 
 ### Schema Validators
 
