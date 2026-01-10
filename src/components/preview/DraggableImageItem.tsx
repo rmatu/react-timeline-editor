@@ -42,6 +42,8 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
   const saveToHistory = useTimelineStore((state) => state.saveToHistory);
   const removeClip = useTimelineStore((state) => state.removeClip);
   const isPlaying = useTimelineStore((state) => state.isPlaying);
+  const tracks = useTimelineStore((state) => state.tracks);
+  const reorderTracks = useTimelineStore((state) => state.reorderTracks);
 
   const isSelected = selectedClipIds.includes(clip.id);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -52,6 +54,8 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragDelta, setDragDelta] = useState({ x: 0, y: 0, scale: 0, rotation: 0 });
   const dragDeltaRef = useRef(dragDelta);
+
+  // ... (existing state)
 
   const dragStartRef = useRef<DragState>({
     mode: null,
@@ -100,6 +104,42 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
     removeClip(clip.id);
     setContextMenu(null);
   }, [clip.id, removeClip, saveToHistory]);
+
+  const handleBringToFront = useCallback(() => {
+    if (!clip.trackId) return;
+
+    // Create array of track IDs sorted by current order
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    // Remove current track ID
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to front (index 0)
+    const newOrder = [clip.trackId!, ...otherTrackIds];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
+
+  const handleSendToBack = useCallback(() => {
+    if (!clip.trackId) return;
+
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to back (last index)
+    const newOrder = [...otherTrackIds, clip.trackId!];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -413,15 +453,15 @@ export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: 
           </button>
           <div className="h-px bg-zinc-700 my-1" />
           <button
-            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2 opacity-50 cursor-not-allowed"
-            disabled
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleBringToFront}
           >
             <ArrowUpToLine className="w-4 h-4" />
             Bring to Front
           </button>
           <button
-            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2 opacity-50 cursor-not-allowed"
-            disabled
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleSendToBack}
           >
             <ArrowDownToLine className="w-4 h-4" />
             Send to Back
