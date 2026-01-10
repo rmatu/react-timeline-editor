@@ -1,6 +1,6 @@
 import { useEffect, useCallback, type RefObject } from "react";
 import { useGesture } from "@use-gesture/react";
-import { useTimelineStore, type TimelineToolMode } from "@/stores/timelineStore";
+import { useTimelineStore } from "@/stores/timelineStore";
 import {
   MIN_ZOOM,
   MAX_ZOOM,
@@ -100,19 +100,27 @@ export function useTimelineGestures(
         if (first) {
           const target = event?.target as HTMLElement;
           const onClipOrHandle = target?.closest(".clip") || target?.closest(".trim-handle") || target?.closest(".duration-handle");
-          
+
           // Always skip scrolling if started on a clip/handle
           if (onClipOrHandle) return { skip: true };
-          
-          // Middle mouse button (button 4 in mask) always enables panning
+
+          // Initial check for tool mode or middle click
           const isMiddleClick = (buttons & 4) !== 0;
-          
+
           // Only allow drag panning in "hand" mode or with middle-click
           if (toolMode !== "hand" && !isMiddleClick) {
             return { skip: true };
           }
-          
+
           return { skip: false };
+        }
+
+        // Re-check buttons for middle-click during drag if we're not in hand mode
+        // This handles the case where user presses middle mouse button mid-drag (though rare)
+        // or ensure we respect the current button state
+        const isMiddleClick = (buttons & 4) !== 0;
+        if (toolMode !== "hand" && !isMiddleClick) {
+          return memo; // Skip if criteria no longer met
         }
 
         // Skip scrolling based on memo

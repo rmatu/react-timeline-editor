@@ -33,8 +33,6 @@ export function MarqueeSelection({
   
   const clips = useTimelineStore((s) => s.clips);
   const tracks = useTimelineStore((s) => s.tracks);
-  const selectClips = useTimelineStore((s) => s.selectClips);
-  const selectedClipIds = useTimelineStore((s) => s.selectedClipIds);
   const toolMode = useTimelineStore((s) => s.toolMode);
 
   // Calculate clip bounds for intersection testing
@@ -141,29 +139,36 @@ export function MarqueeSelection({
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      if (!marquee) {
-        setIsSelecting(false);
-        return;
-      }
-
-      // Find all clips that intersect with the marquee
-      const intersectingClipIds: string[] = [];
-      for (const clipId of clips.keys()) {
-        if (clipIntersectsMarquee(clipId, marquee)) {
-          intersectingClipIds.push(clipId);
+      setMarquee((currentMarquee) => {
+        if (!currentMarquee) {
+          setIsSelecting(false);
+          return null;
         }
-      }
 
-      // If shift is held, add to existing selection
-      if (e.shiftKey) {
-        const combined = new Set([...selectedClipIds, ...intersectingClipIds]);
-        selectClips(Array.from(combined));
-      } else {
-        selectClips(intersectingClipIds);
-      }
+        // Get fresh clips and selection from store directly to avoid dependencies
+        const state = useTimelineStore.getState();
+        const currentClips = state.clips;
+        
+        // Find all clips that intersect with the marquee
+        const intersectingClipIds: string[] = [];
+        for (const clipId of currentClips.keys()) {
+          if (clipIntersectsMarquee(clipId, currentMarquee)) {
+            intersectingClipIds.push(clipId);
+          }
+        }
 
-      setMarquee(null);
-      setIsSelecting(false);
+        // If shift is held, add to existing selection
+        if (e.shiftKey) {
+          const currentSelection = state.selectedClipIds;
+          const combined = new Set([...currentSelection, ...intersectingClipIds]);
+          state.selectClips(Array.from(combined));
+        } else {
+          state.selectClips(intersectingClipIds);
+        }
+
+        setIsSelecting(false);
+        return null;
+      });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -173,7 +178,7 @@ export function MarqueeSelection({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isSelecting, marquee, clips, clipIntersectsMarquee, selectClips, selectedClipIds, containerRef, scrollX, scrollY]);
+  }, [isSelecting, scrollX, scrollY, containerRef, clipIntersectsMarquee]);
 
   // Calculate visual marquee rectangle
   const visualMarquee = marquee

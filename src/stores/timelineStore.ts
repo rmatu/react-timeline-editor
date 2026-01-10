@@ -365,8 +365,23 @@ export const useTimelineStore = create<TimelineStore>()(
           const selectedClips = state.selectedClipIds
             .map((id) => state.clips.get(id))
             .filter((clip): clip is Clip => clip !== undefined);
-          // Deep clone the clips for clipboard
-          state.clipboardClips = selectedClips.map((clip) => ({ ...clip }));
+
+          // Deep clone the clips for clipboard, including keyframes and nested objects
+          state.clipboardClips = selectedClips.map((clip) => {
+            const clone = { ...clip };
+
+            // Deep clone keyframes if they exist
+            if (clone.keyframes) {
+              clone.keyframes = clone.keyframes.map((kf) => ({ ...kf }));
+            }
+
+            // Deep clone position if it exists (Video, Text, Sticker)
+            if ("position" in clone && clone.position) {
+              (clone as any).position = { ...clone.position };
+            }
+
+            return clone;
+          });
         }),
 
       pasteClips: () => {
@@ -378,10 +393,10 @@ export const useTimelineStore = create<TimelineStore>()(
 
         set((draft) => {
           const currentTime = draft.currentTime;
-          
+
           // Find the earliest start time among clipboard clips
           const earliestStart = Math.min(...draft.clipboardClips.map((c) => c.startTime));
-          
+
           // Paste each clip with new IDs and offset to current time
           for (const clipTemplate of draft.clipboardClips) {
             const newClip: Clip = {
@@ -404,7 +419,7 @@ export const useTimelineStore = create<TimelineStore>()(
 
         set((draft) => {
           const newClipIds: string[] = [];
-          
+
           for (const clipId of draft.selectedClipIds) {
             const originalClip = draft.clips.get(clipId);
             if (!originalClip) continue;

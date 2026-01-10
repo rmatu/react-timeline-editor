@@ -67,24 +67,6 @@ export function ProjectsPanel({
     loadProjects();
   }, [loadProjects]);
 
-  // Handle project click
-  const handleProjectClick = useCallback(
-    (project: ProjectMetadata) => {
-      if (project.id === currentProject?.id) return; // Already selected
-
-      if (hasPendingChanges) {
-        setShowConfirmDialog({
-          type: 'switch',
-          projectId: project.id,
-          projectName: project.name,
-        });
-      } else {
-        handleSwitchProject(project.id);
-      }
-    },
-    [currentProject, hasPendingChanges]
-  );
-
   // Switch project (after confirmation if needed)
   const handleSwitchProject = useCallback(
     async (id: string) => {
@@ -100,6 +82,24 @@ export function ProjectsPanel({
       }
     },
     [onSwitchProject, loadProjects]
+  );
+
+  // Handle project click
+  const handleProjectClick = useCallback(
+    (project: ProjectMetadata) => {
+      if (project.id === currentProject?.id) return; // Already selected
+
+      if (hasPendingChanges) {
+        setShowConfirmDialog({
+          type: 'switch',
+          projectId: project.id,
+          projectName: project.name,
+        });
+      } else {
+        handleSwitchProject(project.id);
+      }
+    },
+    [currentProject, hasPendingChanges, handleSwitchProject]
   );
 
   // Save and switch
