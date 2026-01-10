@@ -1,15 +1,18 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import { useGifAnimation } from "@/hooks/useGifAnimation";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 interface DraggableImageItemProps {
   clip: StickerClip;
   currentTime: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  zIndex?: number;
 }
 
 type DragMode = "move" | "scale" | "rotate" | null;
@@ -32,7 +35,7 @@ interface DragState {
  * A sticker/image item that can be selected, dragged, scaled, and rotated within the preview.
  * Supports animated GIFs with synchronized playback.
  */
-export function DraggableImageItem({ clip, currentTime, containerRef }: DraggableImageItemProps) {
+export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: DraggableImageItemProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
   const updateClip = useTimelineStore((state) => state.updateClip);
@@ -321,9 +324,14 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
         className={cn(
           "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
           isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-          dragMode && "z-50"
+          "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
+          isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
+          dragMode && "z-[50]" // Using direct value as we can't easily interpolate dynamic class if using Tailwind's arbitrary values, but we could use style. Let's use style for z-index to be safe via constants? Or just mapped class. 
+          // The constants use 50. Tailwind usually has z-50.
+          // Let's stick with z-50 class if constant is 50, otherwise inline style.
         )}
         style={{
+          zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
           left: `${visualX}%`,
           top: `${visualY}%`,
           width: 'max-content', // Prevent shrink-to-fit when positioned outside container
@@ -385,11 +393,15 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu - Rendered in Portal to avoid clipping/transform issues */}
+      {contextMenu && createPortal(
         <div
-          className="fixed z-[100] bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+          style={{ 
+            left: contextMenu.x, 
+            top: contextMenu.y,
+            zIndex: Z_INDEX.PREVIEW.CONTEXT_MENU 
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -422,7 +434,8 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

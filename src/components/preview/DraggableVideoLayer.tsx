@@ -1,9 +1,11 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { VideoClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 interface DraggableVideoLayerProps {
   clip: VideoClip;
@@ -11,6 +13,7 @@ interface DraggableVideoLayerProps {
   isPlaying: boolean;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onTimeUpdate: (time: number) => void;
+  zIndex?: number;
 }
 
 type DragMode = "move" | "scale" | "rotate" | null;
@@ -39,6 +42,7 @@ export function DraggableVideoLayer({
   isPlaying,
   containerRef,
   onTimeUpdate,
+  zIndex,
 }: DraggableVideoLayerProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
@@ -411,10 +415,12 @@ export function DraggableVideoLayer({
         ref={elementRef}
         className={cn(
           "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
+          "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
           isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-          dragMode && "z-50"
+          dragMode && "z-[50]"
         )}
         style={{
+          zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
           left: `${visualX}%`,
           top: `${visualY}%`,
           // Use calculated dimensions for tight outline
@@ -472,11 +478,15 @@ export function DraggableVideoLayer({
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu - Rendered in Portal */}
+      {contextMenu && createPortal(
         <div
-          className="fixed z-[100] bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+          style={{ 
+            left: contextMenu.x, 
+            top: contextMenu.y,
+            zIndex: Z_INDEX.PREVIEW.CONTEXT_MENU
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -509,7 +519,8 @@ export function DraggableVideoLayer({
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -4,11 +4,13 @@ import type { TextClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
 import { RotateCw } from "lucide-react";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 interface DraggableTextItemProps {
   clip: TextClip;
   currentTime: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  zIndex?: number;
 }
 
 type DragMode = "move" | "scale" | "rotate" | "width" | null;
@@ -32,7 +34,7 @@ interface DragState {
 /**
  * A text item that can be selected, dragged, scaled, and rotated within the preview.
  */
-export function DraggableTextItem({ clip, currentTime, containerRef }: DraggableTextItemProps) {
+export function DraggableTextItem({ clip, currentTime, containerRef, zIndex }: DraggableTextItemProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
   const updateClip = useTimelineStore((state) => state.updateClip);
@@ -291,6 +293,7 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
         dragMode && "z-50"
       )}
       style={{
+        zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
         left: `${visualX}%`,
         top: `${visualY}%`,
         transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,

@@ -82,3 +82,28 @@ export const RESOLUTION_PRESETS = {
   "4:3": { width: 1440, height: 1080, label: "4:3 (1440x1080)" },
   "21:9": { width: 2560, height: 1080, label: "21:9 (2560x1080)" },
 } as const;
+
+export const Z_INDEX = {
+  PREVIEW: {
+    BACKGROUND: 0,
+    VIDEO: 10, // Default for non-sorted videos
+    IMAGE: 20, // Deprecated: specific layer levels will be replaced by dynamic calc
+    TEXT: 30,  // Deprecated
+    CONTENT_BASE: 10, // Base for all track content (10 + maxTracks - trackOrder)
+    OVERLAY_CONTROLS: 40,
+    DRAGGING: 1500, // Needs to be higher than content base + 100 tracks
+    CONTEXT_MENU: 2000,
+  },
+  TIMELINE: {
+    TRACK: 0,
+    CLIP: 10,
+    CONTROLS: 10,
+    RESIZE_HANDLE: 10,
+    RULER: 30,
+    PLAYHEAD: 35,
+    SIDEBAR: 40,
+    SIDEBAR_RESIZE: 45,
+    HEADER: 50,
+    DRAG_PREVIEW: 100,
+  },
+} as const;

@@ -8,6 +8,8 @@ interface TextOverlayProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
+import { Z_INDEX } from "@/constants/timeline.constants";
+
 export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
   const { clips, tracks } = useTimelineStore();
 
@@ -24,16 +26,32 @@ export function TextOverlay({ currentTime, containerRef }: TextOverlayProps) {
 
   if (activeTextClips.length === 0) return null;
 
+  // Calculate max track order for z-index inversion
+  const maxTrackOrder = useMemo(() => {
+    let max = 0;
+    tracks.forEach(track => {
+      if (track.order > max) max = track.order;
+    });
+    return max;
+  }, [tracks]);
+
   return (
-    <div className="absolute inset-0 z-20 pointer-events-none">
-      {activeTextClips.map((clip) => (
-        <DraggableTextItem
-          key={clip.id}
-          clip={clip}
-          currentTime={currentTime}
-          containerRef={containerRef}
-        />
-      ))}
+    <div className="absolute inset-0 pointer-events-none">
+      {activeTextClips.map((clip) => {
+        const track = tracks.get(clip.trackId);
+        // Base content z-index + inverted track order
+        const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxTrackOrder - (track?.order ?? 0));
+        
+        return (
+          <DraggableTextItem
+            key={clip.id}
+            clip={clip}
+            currentTime={currentTime}
+            containerRef={containerRef}
+            zIndex={zIndex}
+          />
+        );
+      })}
     </div>
   );
 }

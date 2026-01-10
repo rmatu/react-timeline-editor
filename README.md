@@ -642,7 +642,28 @@ import {
   MIN_TOUCH_TARGET,     // 44
   DEFAULT_FPS,          // 30
   TRACK_COLORS,         // { video, audio, text, sticker }
+  Z_INDEX,              // Centralized stacking order constants
 } from 'react-video-timeline';
+```
+
+### Z-Index Stacking
+
+The library uses standardized Z-index layers to ensuring predictable stacking contexts:
+
+**Preview Order (Back to Front):**
+1.  **Track Content**: `Dynamic` (Based on track order)
+    *   Tracks higher in the list appear *above* lower tracks.
+2.  **Selection Controls**: `40`
+3.  **Active Drag Element**: `1500`
+4.  **Context Menu**: `2000`
+
+**Timeline Order (Back to Front):**
+1.  Tracks (`0`)
+2.  Clips (`10`)
+3.  Ruler (`30`)
+4.  Playhead (`35`)
+5.  Sidebar (`40`)
+6.  Dragging Header (`50`)
 ```
 
 ## Customization

@@ -7,6 +7,7 @@ import { DraggableVideoLayer } from "./DraggableVideoLayer";
 import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 
 
@@ -171,16 +172,24 @@ export function VideoPreview({
           {/* Video overlays - OUTSIDE player's overflow:hidden so handles aren't clipped */}
           {videoClips
             .filter(clip => tracks.get(clip.trackId)?.visible !== false)
-            .map((clip) => (
-              <DraggableVideoLayer
-                key={clip.id}
-                clip={clip}
-                currentTime={currentTime}
-                isPlaying={isPlaying}
-                containerRef={playerRef}
-                onTimeUpdate={onTimeUpdate}
-              />
-            ))}
+            .map((clip) => {
+              const track = tracks.get(clip.trackId);
+              let maxOrder = 0;
+              tracks.forEach(t => { if (t.order > maxOrder) maxOrder = t.order; });
+              const zIndex = Z_INDEX.PREVIEW.CONTENT_BASE + (maxOrder - (track?.order ?? 0));
+
+              return (
+                <DraggableVideoLayer
+                  key={clip.id}
+                  clip={clip}
+                  currentTime={currentTime}
+                  isPlaying={isPlaying}
+                  containerRef={playerRef}
+                  onTimeUpdate={onTimeUpdate}
+                  zIndex={zIndex}
+                />
+              );
+            })}
 
           {/* Image/sticker overlays - positioned relative to player */}
           <ImageOverlay currentTime={currentTime} containerRef={playerRef} />
