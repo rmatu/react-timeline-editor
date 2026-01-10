@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo, memo } from "react";
+import { useRef, useEffect, useMemo, memo } from "react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { TextOverlay } from "./TextOverlay";
 import { ImageOverlay } from "./ImageOverlay";
@@ -8,107 +8,7 @@ import type { VideoPreviewProps } from "@/types";
 import type { VideoClip, AudioClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 
-// Separate component for each video layer to manage its own ref and state
-const VideoLayer = memo(({ 
-  clip, 
-  isActive, 
-  isPlaying, 
-  currentTime, 
-  onTimeUpdate,
-  onLoadStatusChange,
-  trackMuted,
-  zIndex = 1,
-}: { 
-  clip: VideoClip, 
-  isActive: boolean, 
-  isPlaying: boolean, 
-  currentTime: number,
-  onTimeUpdate: (time: number) => void,
-  onLoadStatusChange: (id: string, isLoaded: boolean) => void,
-  trackMuted: boolean,
-  zIndex?: number,
-}) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Sync loaded state to parent
-  useEffect(() => {
-    onLoadStatusChange(clip.id, isLoaded);
-  }, [clip.id, isLoaded, onLoadStatusChange]);
-
-  // Handle video logic
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    // 1. Mute/Volume - Always mute video element, audio is handled by AudioLayer
-    video.muted = true;
-    video.playbackRate = clip.playbackRate;
-
-    // 2. Playback State
-    if (isActive && isPlaying) {
-      video.play().catch(() => {
-        // Autoplay restrictions or not loaded yet
-      });
-    } else {
-      video.pause();
-    }
-
-    // 3. Time Sync
-    const targetVideoTime = clip.sourceStartTime + (currentTime - clip.startTime) * clip.playbackRate;
-    
-    // Check if we need to sync (seek)
-    const timeDiff = Math.abs(video.currentTime - targetVideoTime);
-    
-    if (!isPlaying || timeDiff > 0.2) {
-      // Check for finite numbers to avoid errors
-      if (Number.isFinite(targetVideoTime)) {
-         video.currentTime = targetVideoTime;
-      }
-    }
-  }, [isActive, isPlaying, clip, currentTime, trackMuted]);
-
-  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    if (!isActive || !isPlaying) return;
-    const video = e.currentTarget;
-    const timelineTime = clip.startTime + (video.currentTime - clip.sourceStartTime);
-    onTimeUpdate(timelineTime);
-  };
-
-  const handleLoadedData = () => {
-    setIsLoaded(true);
-  };
-
-  // Check if clip is in range (should be visible even if not active)
-  const isInRange = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
-
-  // Get animated properties for keyframe animations
-  const animated = useMemo(
-    () => getAnimatedPropertiesAtTime(clip, currentTime),
-    [clip, currentTime]
-  );
-
-  return (
-    <video
-      ref={videoRef}
-      src={clip.sourceUrl}
-      className="absolute inset-0 h-full w-full object-contain pointer-events-none transition-opacity duration-200"
-      style={{
-        opacity: isInRange ? animated.opacity : 0,
-        transform: isInRange
-          ? `scale(${animated.scale}) rotate(${animated.rotation}deg)`
-          : undefined,
-        zIndex: isInRange ? zIndex : 0,
-      }}
-      preload="auto"
-      playsInline
-      onLoadedData={handleLoadedData}
-      onTimeUpdate={handleTimeUpdate}
-    />
-  );
-});
-
-VideoLayer.displayName = "VideoLayer";
 
 const AudioLayer = memo(({
   clip,

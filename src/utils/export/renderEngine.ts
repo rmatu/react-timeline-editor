@@ -249,7 +249,7 @@ export class RenderEngine {
       const trackA = this.tracks.get(a.trackId);
       const trackB = this.tracks.get(b.trackId);
       // Higher order = later in render = on top
-      return (trackB?.order ?? 999) - (trackA?.order ?? 999);
+      return (trackA?.order ?? 999) - (trackB?.order ?? 999);
     });
 
     for (const clip of videoClips) {
@@ -326,7 +326,6 @@ export class RenderEngine {
     // Export: Scale proportionally to maintain same visual ratio
     // For 1080x1920 export: 300 * (1080/420) = 771px
     const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
-    const maxStickerDimension = STICKER_PREVIEW_MAX_SIZE * scaleFactor;
 
     for (const clip of stickerClips) {
       // Get animated properties for keyframe animations
@@ -347,14 +346,19 @@ export class RenderEngine {
       // Check if this is an animated GIF with extracted frames
       const gifData = this.resources!.gifFrames.get(clip.id);
       if (gifData && clip.isAnimated) {
-        // Calculate constrained dimensions for GIF (matching preview max-w/max-h)
-        let w = gifData.width;
-        let h = gifData.height;
-        if (w > maxStickerDimension || h > maxStickerDimension) {
-          const constrainScale = Math.min(maxStickerDimension / w, maxStickerDimension / h);
-          w *= constrainScale;
-          h *= constrainScale;
+        // Calculate display dimensions to match preview proportions
+        // Preview uses max-w-[300px] max-h-[300px] CSS constraint
+        // First, calculate base size in "preview space" (constrained to 300px max)
+        let baseW = gifData.width;
+        let baseH = gifData.height;
+        if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
+          const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
+          baseW *= constrainScale;
+          baseH *= constrainScale;
         }
+        // Then scale to export dimensions
+        const w = baseW * scaleFactor;
+        const h = baseH * scaleFactor;
 
         // Calculate which frame to show based on clip-relative time
         const clipTimeMs = (time - clip.startTime) * 1000;
@@ -385,16 +389,20 @@ export class RenderEngine {
           }
         }
       } else {
-        // Static image with constrained dimensions (matching preview max-w/max-h)
+        // Static image with proportional scaling to match preview
         const img = this.resources!.stickerImages.get(clip.id);
         if (img) {
-          let w = img.width;
-          let h = img.height;
-          if (w > maxStickerDimension || h > maxStickerDimension) {
-            const constrainScale = Math.min(maxStickerDimension / w, maxStickerDimension / h);
-            w *= constrainScale;
-            h *= constrainScale;
+          // Calculate base size in "preview space" (constrained to 300px max)
+          let baseW = img.width;
+          let baseH = img.height;
+          if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
+            const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
+            baseW *= constrainScale;
+            baseH *= constrainScale;
           }
+          // Scale to export dimensions
+          const w = baseW * scaleFactor;
+          const h = baseH * scaleFactor;
           ctx.drawImage(img, -w / 2, -h / 2, w, h);
         }
       }
