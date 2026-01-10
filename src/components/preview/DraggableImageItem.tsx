@@ -233,7 +233,7 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragMode, clip.id, updateClip, saveToHistory]);
+  }, [dragMode, clip, updateClip, saveToHistory]);
 
   // Calculate visual transforms
   const visualX = dragMode === "move"
