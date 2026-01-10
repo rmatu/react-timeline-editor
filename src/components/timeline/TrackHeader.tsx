@@ -3,7 +3,7 @@ import { useDrag } from "@use-gesture/react";
 import { useTimelineStore } from "@/stores/timelineStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { TRACK_COLORS } from "@/constants/timeline.constants";
+import { TRACK_COLORS, Z_INDEX } from "@/constants/timeline.constants";
 import type { Track } from "@/schemas";
 
 interface TrackHeaderProps {
@@ -203,9 +203,12 @@ export function TrackHeader({ track, sortedTracks, onDragStart, onDragEnd }: Tra
       className={cn(
         "group relative flex items-center gap-2 border-b border-zinc-700 px-2 transition-colors",
         isSelected ? "bg-zinc-700" : "bg-zinc-800 hover:bg-zinc-750",
-        isDraggingTrack && "bg-zinc-600 shadow-lg z-50"
+        isDraggingTrack && "bg-zinc-600 shadow-lg"
       )}
-      style={{ height: track.height }}
+      style={{ 
+        height: track.height,
+        zIndex: isDraggingTrack ? Z_INDEX.TIMELINE.HEADER : undefined
+      }}
       onClick={handleClick}
     >
       {/* Drag handle */}
@@ -248,7 +251,10 @@ export function TrackHeader({ track, sortedTracks, onDragStart, onDragEnd }: Tra
       )}
 
       {/* Track controls */}
-      <div className="absolute right-0 top-0 h-full z-10 flex items-center gap-1 pr-2 pl-2 bg-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <div 
+        className="absolute right-0 top-0 h-full flex items-center gap-1 pr-2 pl-2 bg-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+        style={{ zIndex: Z_INDEX.TIMELINE.CONTROLS }}
+      >
         {/* Visibility toggle - hide for audio tracks */}
         {track.type !== "audio" && (
           <button
@@ -308,7 +314,8 @@ export function TrackHeader({ track, sortedTracks, onDragStart, onDragEnd }: Tra
       {/* Resize Handle */}
       <div
         {...bindResize()}
-        className="absolute bottom-0 left-0 right-0 h-1.5 cursor-row-resize opacity-0 transition-opacity hover:bg-blue-500/50 group-hover:opacity-100 z-10"
+        className="absolute bottom-0 left-0 right-0 h-1.5 cursor-row-resize opacity-0 transition-opacity hover:bg-blue-500/50 group-hover:opacity-100"
+        style={{ zIndex: Z_INDEX.TIMELINE.RESIZE_HANDLE }}
       />
     </div>
   );

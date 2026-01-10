@@ -1,15 +1,18 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { StickerClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import { useGifAnimation } from "@/hooks/useGifAnimation";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 interface DraggableImageItemProps {
   clip: StickerClip;
   currentTime: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  zIndex?: number;
 }
 
 type DragMode = "move" | "scale" | "rotate" | null;
@@ -32,13 +35,15 @@ interface DragState {
  * A sticker/image item that can be selected, dragged, scaled, and rotated within the preview.
  * Supports animated GIFs with synchronized playback.
  */
-export function DraggableImageItem({ clip, currentTime, containerRef }: DraggableImageItemProps) {
+export function DraggableImageItem({ clip, currentTime, containerRef, zIndex }: DraggableImageItemProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
   const updateClip = useTimelineStore((state) => state.updateClip);
   const saveToHistory = useTimelineStore((state) => state.saveToHistory);
   const removeClip = useTimelineStore((state) => state.removeClip);
   const isPlaying = useTimelineStore((state) => state.isPlaying);
+  const tracks = useTimelineStore((state) => state.tracks);
+  const reorderTracks = useTimelineStore((state) => state.reorderTracks);
 
   const isSelected = selectedClipIds.includes(clip.id);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -49,6 +54,8 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragDelta, setDragDelta] = useState({ x: 0, y: 0, scale: 0, rotation: 0 });
   const dragDeltaRef = useRef(dragDelta);
+
+  // ... (existing state)
 
   const dragStartRef = useRef<DragState>({
     mode: null,
@@ -97,6 +104,42 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
     removeClip(clip.id);
     setContextMenu(null);
   }, [clip.id, removeClip, saveToHistory]);
+
+  const handleBringToFront = useCallback(() => {
+    if (!clip.trackId) return;
+
+    // Create array of track IDs sorted by current order
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    // Remove current track ID
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to front (index 0)
+    const newOrder = [clip.trackId!, ...otherTrackIds];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
+
+  const handleSendToBack = useCallback(() => {
+    if (!clip.trackId) return;
+
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to back (last index)
+    const newOrder = [...otherTrackIds, clip.trackId!];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -321,9 +364,10 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
         className={cn(
           "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
           isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-          dragMode && "z-50"
+          dragMode && "z-[50]"
         )}
         style={{
+          zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
           left: `${visualX}%`,
           top: `${visualY}%`,
           width: 'max-content', // Prevent shrink-to-fit when positioned outside container
@@ -385,11 +429,15 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu - Rendered in Portal to avoid clipping/transform issues */}
+      {contextMenu && createPortal(
         <div
-          className="fixed z-[100] bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+          style={{ 
+            left: contextMenu.x, 
+            top: contextMenu.y,
+            zIndex: Z_INDEX.PREVIEW.CONTEXT_MENU 
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -401,15 +449,15 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
           </button>
           <div className="h-px bg-zinc-700 my-1" />
           <button
-            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2 opacity-50 cursor-not-allowed"
-            disabled
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleBringToFront}
           >
             <ArrowUpToLine className="w-4 h-4" />
             Bring to Front
           </button>
           <button
-            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2 opacity-50 cursor-not-allowed"
-            disabled
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleSendToBack}
           >
             <ArrowDownToLine className="w-4 h-4" />
             Send to Back
@@ -422,7 +470,8 @@ export function DraggableImageItem({ clip, currentTime, containerRef }: Draggabl
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

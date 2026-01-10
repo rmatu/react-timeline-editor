@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import {
   TRACK_HEADER_WIDTH,
   RULER_HEIGHT,
+  Z_INDEX,
 } from "@/constants/timeline.constants";
 import type { TimelineProps } from "@/types";
 import type { Clip } from "@/schemas";
@@ -195,8 +196,8 @@ export function Timeline({
     >
       {/* Sidebar Column */}
       <div 
-        className="flex flex-col border-r border-zinc-700 bg-zinc-800 z-20 relative"
-        style={{ width: sidebarWidth }}
+        className="flex flex-col border-r border-zinc-700 bg-zinc-800 relative"
+        style={{ width: sidebarWidth, zIndex: Z_INDEX.TIMELINE.SIDEBAR }}
       >
          {/* Sidebar Header (Top-Left Corner) */}
          <div className="flex-shrink-0 border-b border-zinc-700" style={{ height: RULER_HEIGHT }} />
@@ -222,14 +223,15 @@ export function Timeline({
          {/* Sidebar Resize Handle */}
          <div
             {...bindSidebarResize()}
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 z-30 transform translate-x-1/2"
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 transform translate-x-1/2"
+            style={{ zIndex: Z_INDEX.TIMELINE.SIDEBAR_RESIZE }}
          />
       </div>
 
       {/* Content Column */}
       <div className="flex flex-col flex-1 min-w-0 relative">
         {/* Ruler Row */}
-        <div className="flex-shrink-0 border-b border-zinc-700 z-10 bg-zinc-900" style={{ height: RULER_HEIGHT }}>
+        <div className="flex-shrink-0 border-b border-zinc-700 bg-zinc-900" style={{ height: RULER_HEIGHT, zIndex: Z_INDEX.TIMELINE.RULER }}>
            <TimeRuler
             duration={totalDuration}
             zoomLevel={zoomLevel}
@@ -283,7 +285,10 @@ export function Timeline({
         
         {/* Global Playhead Overlay */}
         {/* Positioned relative to Content Column */}
-        <div className="absolute inset-y-0 left-0 right-0 pointer-events-none overflow-hidden z-20">
+        <div 
+          className="absolute inset-y-0 left-0 right-0 pointer-events-none overflow-hidden" 
+          style={{ zIndex: Z_INDEX.TIMELINE.PLAYHEAD }}
+        >
           <Playhead
             currentTime={currentTime}
             zoomLevel={zoomLevel}

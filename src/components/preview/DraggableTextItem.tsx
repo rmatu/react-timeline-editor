@@ -3,12 +3,15 @@ import { useTimelineStore } from "@/stores/timelineStore";
 import type { TextClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
-import { RotateCw } from "lucide-react";
+import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 interface DraggableTextItemProps {
   clip: TextClip;
   currentTime: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  zIndex?: number;
 }
 
 type DragMode = "move" | "scale" | "rotate" | "width" | null;
@@ -32,15 +35,21 @@ interface DragState {
 /**
  * A text item that can be selected, dragged, scaled, and rotated within the preview.
  */
-export function DraggableTextItem({ clip, currentTime, containerRef }: DraggableTextItemProps) {
+export function DraggableTextItem({ clip, currentTime, containerRef, zIndex }: DraggableTextItemProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
   const updateClip = useTimelineStore((state) => state.updateClip);
   const saveToHistory = useTimelineStore((state) => state.saveToHistory);
+  const tracks = useTimelineStore((state) => state.tracks);
+  const reorderTracks = useTimelineStore((state) => state.reorderTracks);
+  const removeClip = useTimelineStore((state) => state.removeClip);
 
   const isSelected = selectedClipIds.includes(clip.id);
   const elementRef = useRef<HTMLDivElement>(null);
   const textContentRef = useRef<HTMLDivElement>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [dragDelta, setDragDelta] = useState({ x: 0, y: 0, scale: 0, rotation: 0, width: 0 });
@@ -282,103 +291,229 @@ export function DraggableTextItem({ clip, currentTime, containerRef }: Draggable
     ? dragStartRef.current.startRotation + dragDelta.rotation
     : baseRotation;
 
+
+  const handleFitToScreen = useCallback(() => {
+    saveToHistory();
+    updateClip(clip.id, {
+      position: { x: 50, y: 50 },
+      scale: 1,
+      rotation: 0,
+    });
+    setContextMenu(null);
+  }, [clip.id, updateClip, saveToHistory]);
+
+  const handleDelete = useCallback(() => {
+    saveToHistory();
+    removeClip(clip.id);
+    setContextMenu(null);
+  }, [clip.id, removeClip, saveToHistory]);
+
+  const handleBringToFront = useCallback(() => {
+    if (!clip.trackId) return;
+
+    // Create array of track IDs sorted by current order
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    // Remove current track ID
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to front (index 0) - Lower order = Higher Z-Index
+    const newOrder = [clip.trackId!, ...otherTrackIds];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
+
+  const handleSendToBack = useCallback(() => {
+    if (!clip.trackId) return;
+
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to back (last index) - Higher order = Lower Z-Index
+    const newOrder = [...otherTrackIds, clip.trackId!];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    selectClip(clip.id, false);
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, [clip.id, selectClip]);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleClick = () => setContextMenu(null);
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null);
+    };
+
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [contextMenu]);
+
   return (
-    <div
-      ref={elementRef}
-      className={cn(
-        "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
-        isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-        dragMode && "z-50"
-      )}
-      style={{
-        left: `${visualX}%`,
-        top: `${visualY}%`,
-        transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
-        opacity: animated.opacity,
-        // Prevent width collapsing when positioned near container edges
-        width: clip.maxWidth ? `${clip.maxWidth}px` : 'max-content',
-      }}
-      onMouseDown={handleMoveStart}
-    >
-      {/* Text content */}
+    <>
       <div
-        ref={textContentRef}
+        ref={elementRef}
+        className={cn(
+          "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
+          isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
+          dragMode && "z-[50]"
+        )}
         style={{
-          fontFamily: clip.fontFamily,
-          fontSize: `${animated.fontSize ?? clip.fontSize}px`,
-          fontWeight: clip.fontWeight,
-          color: animated.color ?? clip.color,
-          backgroundColor: clip.backgroundColor || "transparent",
-          textAlign: clip.textAlign,
-          padding: clip.backgroundColor ? "4px 8px" : 0,
-          borderRadius: clip.backgroundColor ? 4 : 0,
-          // Text width constraint priority:
-          // 1. During width drag - use drag delta
-          // 2. Explicit clip.maxWidth set by user
-          // 3. Fall back to 90% of container width (for narrow aspect ratios)
-          maxWidth: dragMode === "width" && Math.abs(dragDelta.width) > 3
-            ? `${Math.max(50, dragStartRef.current.startWidth + dragDelta.width)}px`
-            : clip.maxWidth 
-              ? `${clip.maxWidth}px` 
-              : undefined,
-          // Word wrap only if we have a constraint (drag or specific maxWidth)
-          whiteSpace: (clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3)) 
-            ? "normal" 
-            : "nowrap",
-          wordBreak: (clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3)) 
-            ? "break-word" 
-            : undefined,
-          textShadow: !clip.backgroundColor ? "0 2px 4px rgba(0,0,0,0.5)" : "none",
+          zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
+          left: `${visualX}%`,
+          top: `${visualY}%`,
+          transform: `translate(-50%, -50%) scale(${visualScale}) rotate(${visualRotation}deg)`,
+          opacity: animated.opacity,
+          // Prevent width collapsing when positioned near container edges
+          width: clip.maxWidth ? `${clip.maxWidth}px` : 'max-content',
         }}
+        onMouseDown={handleMoveStart}
+        onContextMenu={handleContextMenu}
       >
-        {clip.content}
+        {/* Text content */}
+        <div
+          ref={textContentRef}
+          style={{
+            fontFamily: clip.fontFamily,
+            fontSize: `${animated.fontSize ?? clip.fontSize}px`,
+            fontWeight: clip.fontWeight,
+            color: animated.color ?? clip.color,
+            backgroundColor: clip.backgroundColor || "transparent",
+            textAlign: clip.textAlign,
+            padding: clip.backgroundColor ? "4px 8px" : 0,
+            borderRadius: clip.backgroundColor ? 4 : 0,
+            // Text width constraint priority:
+            // 1. During width drag - use drag delta
+            // 2. Explicit clip.maxWidth set by user
+            // 3. Fall back to 90% of container width (for narrow aspect ratios)
+            maxWidth: dragMode === "width" && Math.abs(dragDelta.width) > 3
+              ? `${Math.max(50, dragStartRef.current.startWidth + dragDelta.width)}px`
+              : clip.maxWidth
+                ? `${clip.maxWidth}px`
+                : undefined,
+            // Word wrap only if we have a constraint (drag or specific maxWidth)
+            whiteSpace: (clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3))
+              ? "normal"
+              : "nowrap",
+            wordBreak: (clip.maxWidth || (dragMode === "width" && Math.abs(dragDelta.width) > 3))
+              ? "break-word"
+              : undefined,
+            textShadow: !clip.backgroundColor ? "0 2px 4px rgba(0,0,0,0.5)" : "none",
+          }}
+        >
+          {clip.content}
+        </div>
+
+        {/* Selection handles - only show when selected */}
+        {isSelected && (
+          <>
+            {/* Corner handles for scaling */}
+            <div
+              className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nwse-resize hover:bg-cyan-100"
+              onMouseDown={handleScaleStart}
+            />
+            <div
+              className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nesw-resize hover:bg-cyan-100"
+              onMouseDown={handleScaleStart}
+            />
+            <div
+              className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nesw-resize hover:bg-cyan-100"
+              onMouseDown={handleScaleStart}
+            />
+            <div
+              className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nwse-resize hover:bg-cyan-100"
+              onMouseDown={handleScaleStart}
+            />
+
+            {/* Rotation handle - positioned above the element */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <div
+                className="w-5 h-5 bg-white border-2 border-cyan-400 rounded-full cursor-grab hover:bg-cyan-100 flex items-center justify-center"
+                onMouseDown={handleRotateStart}
+              >
+                <RotateCw className="w-3 h-3 text-cyan-600" />
+              </div>
+              {/* Connecting line */}
+              <div className="w-0.5 h-4 bg-cyan-400" />
+            </div>
+
+            {/* Edge handles for width resize */}
+            <div
+              className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2.5 h-2.5 bg-white border-2 border-cyan-400 rounded-full cursor-ew-resize hover:bg-cyan-100"
+              onMouseDown={handleWidthStart}
+            />
+            <div
+              className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2.5 h-2.5 bg-white border-2 border-cyan-400 rounded-full cursor-ew-resize hover:bg-cyan-100"
+              onMouseDown={handleWidthStart}
+            />
+          </>
+        )}
       </div>
 
-      {/* Selection handles - only show when selected */}
-      {isSelected && (
-        <>
-          {/* Corner handles for scaling */}
-          <div 
-            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nwse-resize hover:bg-cyan-100" 
-            onMouseDown={handleScaleStart}
-          />
-          <div 
-            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nesw-resize hover:bg-cyan-100" 
-            onMouseDown={handleScaleStart}
-          />
-          <div 
-            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nesw-resize hover:bg-cyan-100" 
-            onMouseDown={handleScaleStart}
-          />
-          <div 
-            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-cyan-400 rounded-full cursor-nwse-resize hover:bg-cyan-100" 
-            onMouseDown={handleScaleStart}
-          />
-
-          {/* Rotation handle - positioned above the element */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <div 
-              className="w-5 h-5 bg-white border-2 border-cyan-400 rounded-full cursor-grab hover:bg-cyan-100 flex items-center justify-center"
-              onMouseDown={handleRotateStart}
-            >
-              <RotateCw className="w-3 h-3 text-cyan-600" />
-            </div>
-            {/* Connecting line */}
-            <div className="w-0.5 h-4 bg-cyan-400" />
-          </div>
-
-          {/* Edge handles for width resize */}
-          <div 
-            className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2.5 h-2.5 bg-white border-2 border-cyan-400 rounded-full cursor-ew-resize hover:bg-cyan-100" 
-            onMouseDown={handleWidthStart}
-          />
-          <div 
-            className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2.5 h-2.5 bg-white border-2 border-cyan-400 rounded-full cursor-ew-resize hover:bg-cyan-100" 
-            onMouseDown={handleWidthStart}
-          />
-        </>
+      {/* Context Menu - Rendered in Portal */}
+      {contextMenu && createPortal(
+        <div
+          className="fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: Z_INDEX.PREVIEW.CONTEXT_MENU
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleFitToScreen}
+          >
+            <Maximize2 className="w-4 h-4" />
+            Fit to Screen
+          </button>
+          <div className="h-px bg-zinc-700 my-1" />
+          <button
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleBringToFront}
+          >
+            <ArrowUpToLine className="w-4 h-4" />
+            Bring to Front
+          </button>
+          <button
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleSendToBack}
+          >
+            <ArrowDownToLine className="w-4 h-4" />
+            Send to Back
+          </button>
+          <div className="h-px bg-zinc-700 my-1" />
+          <button
+            className="w-full px-3 py-2 text-sm text-left text-red-400 hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleDelete}
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 

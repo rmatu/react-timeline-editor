@@ -1,9 +1,11 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTimelineStore } from "@/stores/timelineStore";
 import type { VideoClip } from "@/schemas";
 import { getAnimatedPropertiesAtTime } from "@/utils/keyframes";
 import { cn } from "@/lib/utils";
 import { RotateCw, Maximize2, Trash2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
+import { Z_INDEX } from "@/constants/timeline.constants";
 
 interface DraggableVideoLayerProps {
   clip: VideoClip;
@@ -11,6 +13,7 @@ interface DraggableVideoLayerProps {
   isPlaying: boolean;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onTimeUpdate: (time: number) => void;
+  zIndex?: number;
 }
 
 type DragMode = "move" | "scale" | "rotate" | null;
@@ -39,6 +42,7 @@ export function DraggableVideoLayer({
   isPlaying,
   containerRef,
   onTimeUpdate,
+  zIndex,
 }: DraggableVideoLayerProps) {
   const selectedClipIds = useTimelineStore((state) => state.selectedClipIds);
   const selectClip = useTimelineStore((state) => state.selectClip);
@@ -46,6 +50,7 @@ export function DraggableVideoLayer({
   const saveToHistory = useTimelineStore((state) => state.saveToHistory);
   const removeClip = useTimelineStore((state) => state.removeClip);
   const tracks = useTimelineStore((state) => state.tracks);
+  const reorderTracks = useTimelineStore((state) => state.reorderTracks);
 
   const isSelected = selectedClipIds.includes(clip.id);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -199,6 +204,42 @@ export function DraggableVideoLayer({
     });
     setContextMenu(null);
   }, [clip.id, updateClip, saveToHistory]);
+
+  const handleBringToFront = useCallback(() => {
+    if (!clip.trackId) return;
+
+    // Create array of track IDs sorted by current order
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    // Remove current track ID
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to front (index 0)
+    const newOrder = [clip.trackId!, ...otherTrackIds];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
+
+  const handleSendToBack = useCallback(() => {
+    if (!clip.trackId) return;
+
+    const sortedTrackIds = Array.from(tracks.values())
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id);
+
+    const otherTrackIds = sortedTrackIds.filter(id => id !== clip.trackId);
+
+    // Add to back (last index)
+    const newOrder = [...otherTrackIds, clip.trackId!];
+
+    saveToHistory();
+    reorderTracks(newOrder);
+    setContextMenu(null);
+  }, [clip.trackId, tracks, reorderTracks, saveToHistory]);
 
   const handleDelete = useCallback(() => {
     saveToHistory();
@@ -412,9 +453,10 @@ export function DraggableVideoLayer({
         className={cn(
           "absolute cursor-move transition-shadow duration-100 select-none pointer-events-auto",
           isSelected && "ring-2 ring-cyan-400 ring-offset-1 ring-offset-transparent",
-          dragMode && "z-50"
+          dragMode && "z-[50]"
         )}
         style={{
+          zIndex: dragMode ? Z_INDEX.PREVIEW.DRAGGING : zIndex,
           left: `${visualX}%`,
           top: `${visualY}%`,
           // Use calculated dimensions for tight outline
@@ -472,11 +514,15 @@ export function DraggableVideoLayer({
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu - Rendered in Portal */}
+      {contextMenu && createPortal(
         <div
-          className="fixed z-[100] bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+          style={{ 
+            left: contextMenu.x, 
+            top: contextMenu.y,
+            zIndex: Z_INDEX.PREVIEW.CONTEXT_MENU
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -488,15 +534,15 @@ export function DraggableVideoLayer({
           </button>
           <div className="h-px bg-zinc-700 my-1" />
           <button
-            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2 opacity-50 cursor-not-allowed"
-            disabled
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleBringToFront}
           >
             <ArrowUpToLine className="w-4 h-4" />
             Bring to Front
           </button>
           <button
-            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2 opacity-50 cursor-not-allowed"
-            disabled
+            className="w-full px-3 py-2 text-sm text-left text-white hover:bg-zinc-700 flex items-center gap-2"
+            onClick={handleSendToBack}
           >
             <ArrowDownToLine className="w-4 h-4" />
             Send to Back
@@ -509,7 +555,8 @@ export function DraggableVideoLayer({
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

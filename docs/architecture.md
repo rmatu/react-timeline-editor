@@ -587,3 +587,30 @@ When migrating to Supabase (or other cloud storage):
     -   Optimistic updates (save locally, sync in background)
     -   Conflict resolution for multi-device editing
     -   Offline support with eventual consistency
+
+## 9. Z-Index Strategy
+
+The application uses a centralized set of constants (`src/constants/timeline.constants.ts`) to manage z-index stacking orders, ensuring predictable layering in both the Preview and Timeline.
+
+### Preview Elements (`Z_INDEX.PREVIEW`)
+Stacking order from back to front:
+- **Background**: `0`
+- **Track Content** (Video/Image/Text): `Dynamic`
+  - Base value: `10` (`CONTENT_BASE`)
+  - Calculated as: `10 + (MaxTrackOrder - TrackOrder)`
+  - Tracks higher in the timeline (lower order) stack *above* lower tracks.
+- **Overlay Controls**: `40` (Selection handles, guidelines)
+- **Dragging Element**: `1500` (Active drag operation)
+- **Context Menu**: `2000` (Fixed position, rendered via Portal)
+
+### Timeline Elements (`Z_INDEX.TIMELINE`)
+Stacking order from back to front:
+-   **Track**: `0` (Base track container)
+-   **Clip**: `10`
+-   **Controls**: `10` (Track controls) & **Resize Handle**: `10`
+-   **Ruler**: `30`
+-   **Playhead**: `35` (Above tracks and ruler)
+-   **Sidebar**: `40` (Track headers container)
+-   **Sidebar Resize**: `45`
+-   **Header**: `50` (Active dragging track header)
+-   **Drag Preview**: `100` (Ghost element during drag)

@@ -205,6 +205,9 @@ export class RenderEngine {
   /**
    * Render a single frame at the given time
    */
+  /**
+   * Render a single frame at the given time
+   */
   async renderFrame(time: number): Promise<HTMLCanvasElement> {
     if (!this.resources) {
       throw new Error("Resources not loaded. Call loadResources() first.");
@@ -216,15 +219,37 @@ export class RenderEngine {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // 2. Render layers in order (painter's algorithm: bottom to top)
-    // Video clips are rendered sorted by track order (higher order = on top)
-    await this.renderVideoLayer(time);
+    // 2. Get ALL active clips regardless of type
+    const allClips = [
+      ...this.getActiveClips<VideoClip>("video", time),
+      ...this.getActiveClips<StickerClip>("sticker", time),
+      ...this.getActiveClips<TextClip>("text", time),
+    ];
 
-    // 3. Render sticker clips
-    this.renderStickerLayer(time);
+    // 3. Sort by track order descending (Highest order = Lowest Z = Drawn First)
+    // Track 0 (Top) has (Max - 0) = High Z = Drawn Last (On Top)
+    allClips.sort((a, b) => {
+      const trackA = this.tracks.get(a.trackId);
+      const trackB = this.tracks.get(b.trackId);
+      const orderA = trackA?.order ?? 999;
+      const orderB = trackB?.order ?? 999;
+      return orderB - orderA; // Descending sort
+    });
 
-    // 4. Render text clips (always on top)
-    this.renderTextLayer(time);
+    // 4. Render clips in order
+    for (const clip of allClips) {
+      switch (clip.type) {
+        case "video":
+          await this.renderVideoClip(clip as VideoClip, time);
+          break;
+        case "sticker":
+          this.renderStickerClip(clip as StickerClip, time);
+          break;
+        case "text":
+          this.renderTextClip(clip as TextClip, time);
+          break;
+      }
+    }
 
     return this.canvas;
   }
@@ -237,57 +262,242 @@ export class RenderEngine {
   }
 
   // ==========================================================================
-  // Layer Renderers
+  // Clip Renderers
   // ==========================================================================
 
-  private async renderVideoLayer(time: number): Promise<void> {
-    const videoClips = this.getActiveClips<VideoClip>("video", time);
+  private async renderVideoClip(clip: VideoClip, time: number): Promise<void> {
+    const vid = this.resources!.videoElements.get(clip.id);
+    if (!vid) return;
 
-    // Sort by track order (lower order = bottom, higher order = top)
-    // This matches VideoPreview.tsx: renders in order so later items overlay earlier
-    videoClips.sort((a, b) => {
-      const trackA = this.tracks.get(a.trackId);
-      const trackB = this.tracks.get(b.trackId);
-      // Higher order = later in render = on top
-      return (trackA?.order ?? 999) - (trackB?.order ?? 999);
-    });
+    // Get animated properties for keyframe animations
+    const animated = getAnimatedPropertiesAtTime(clip, time);
 
-    for (const clip of videoClips) {
-      const vid = this.resources!.videoElements.get(clip.id);
-      if (!vid) continue;
+    // Calculate seek time with playback rate
+    const seekTime = clip.sourceStartTime + (time - clip.startTime) * clip.playbackRate;
 
-      // Get animated properties for keyframe animations
-      const animated = getAnimatedPropertiesAtTime(clip, time);
+    // Always seek to ensure we get the correct frame
+    // Use requestVideoFrameCallback if available for frame-accurate timing
+    await this.seekVideoToTime(vid, seekTime);
 
-      // Calculate seek time with playback rate
-      const seekTime = clip.sourceStartTime + (time - clip.startTime) * clip.playbackRate;
+    // Calculate base video dimensions (contain mode)
+    const baseScale = Math.min(this.width / vid.videoWidth, this.height / vid.videoHeight);
+    const w = vid.videoWidth * baseScale;
+    const h = vid.videoHeight * baseScale;
 
-      // Always seek to ensure we get the correct frame
-      // Use requestVideoFrameCallback if available for frame-accurate timing
-      await this.seekVideoToTime(vid, seekTime);
+    // Position based on animated position (percentage to pixels, centered on point)
+    const x = (animated.position.x / 100) * this.width;
+    const y = (animated.position.y / 100) * this.height;
 
-      // Calculate base video dimensions (contain mode)
-      const baseScale = Math.min(this.width / vid.videoWidth, this.height / vid.videoHeight);
-      const w = vid.videoWidth * baseScale;
-      const h = vid.videoHeight * baseScale;
+    // Apply keyframe animations (opacity, scale, rotation)
+    this.ctx.save();
+    this.ctx.globalAlpha = animated.opacity;
 
-      // Position based on animated position (percentage to pixels, centered on point)
-      const x = (animated.position.x / 100) * this.width;
-      const y = (animated.position.y / 100) * this.height;
+    // Apply transforms around video position (center of video at position)
+    this.ctx.translate(x, y);
+    this.ctx.scale(animated.scale, animated.scale);
+    this.ctx.rotate((animated.rotation * Math.PI) / 180);
 
-      // Apply keyframe animations (opacity, scale, rotation)
-      this.ctx.save();
-      this.ctx.globalAlpha = animated.opacity;
+    // Draw video centered on the transformed origin
+    this.ctx.drawImage(vid, -w / 2, -h / 2, w, h);
+    this.ctx.restore();
+  }
 
-      // Apply transforms around video position (center of video at position)
-      this.ctx.translate(x, y);
-      this.ctx.scale(animated.scale, animated.scale);
-      this.ctx.rotate((animated.rotation * Math.PI) / 180);
+  private renderStickerClip(clip: StickerClip, time: number): void {
+    // Calculate max sticker dimension to match preview's visual proportion
+    // Preview: 300px sticker in ~420px container = 71.4% of container width
+    // Export: Scale proportionally to maintain same visual ratio
+    // For 1080x1920 export: 300 * (1080/420) = 771px
+    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
 
-      // Draw video centered on the transformed origin
-      this.ctx.drawImage(vid, -w / 2, -h / 2, w, h);
-      this.ctx.restore();
+    // Get animated properties for keyframe animations
+    const animated = getAnimatedPropertiesAtTime(clip, time);
+
+    const ctx = this.ctx;
+    ctx.save();
+
+    // Position (use animated position, percentage to pixels, centered)
+    const x = (animated.position.x / 100) * this.width;
+    const y = (animated.position.y / 100) * this.height;
+
+    ctx.translate(x, y);
+    ctx.rotate((animated.rotation * Math.PI) / 180);
+    ctx.scale(animated.scale, animated.scale);
+    ctx.globalAlpha = animated.opacity;
+
+    // Check if this is an animated GIF with extracted frames
+    const gifData = this.resources!.gifFrames.get(clip.id);
+    if (gifData && clip.isAnimated) {
+      // Calculate display dimensions to match preview proportions
+      // Preview uses max-w-[300px] max-h-[300px] CSS constraint
+      // First, calculate base size in "preview space" (constrained to 300px max)
+      let baseW = gifData.width;
+      let baseH = gifData.height;
+      if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
+        const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
+        baseW *= constrainScale;
+        baseH *= constrainScale;
+      }
+      // Then scale to export dimensions
+      const w = baseW * scaleFactor;
+      const h = baseH * scaleFactor;
+
+      // Calculate which frame to show based on clip-relative time
+      const clipTimeMs = (time - clip.startTime) * 1000;
+      const loopTime = clipTimeMs >= 0 ? clipTimeMs % gifData.totalDuration : 0;
+
+      // Find the frame index based on accumulated delays
+      let frameIndex = 0;
+      let accumulated = 0;
+      for (let i = 0; i < gifData.delays.length; i++) {
+        accumulated += gifData.delays[i];
+        if (loopTime < accumulated) {
+          frameIndex = i;
+          break;
+        }
+      }
+
+      // Draw the GIF frame at constrained dimensions
+      const frameData = gifData.frames[frameIndex];
+      if (frameData) {
+        // Create a temp canvas to convert ImageData to drawable image
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = gifData.width;
+        tempCanvas.height = gifData.height;
+        const tempCtx = tempCanvas.getContext("2d");
+        if (tempCtx) {
+          tempCtx.putImageData(frameData, 0, 0);
+          ctx.drawImage(tempCanvas, -w / 2, -h / 2, w, h);
+        }
+      }
+    } else {
+      // Static image with proportional scaling to match preview
+      const img = this.resources!.stickerImages.get(clip.id);
+      if (img) {
+        // Calculate base size in "preview space" (constrained to 300px max)
+        let baseW = img.width;
+        let baseH = img.height;
+        if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
+          const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
+          baseW *= constrainScale;
+          baseH *= constrainScale;
+        }
+        // Scale to export dimensions
+        const w = baseW * scaleFactor;
+        const h = baseH * scaleFactor;
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      }
     }
+
+    ctx.restore();
+  }
+
+  private renderTextClip(clip: TextClip, time: number): void {
+    // Scale factor to match preview's visual proportion (same as stickers)
+    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
+
+    // Get animated properties for keyframe animations
+    const animated = getAnimatedPropertiesAtTime(clip, time);
+
+    const ctx = this.ctx;
+
+    // Position (use animated position, percentage to pixels)
+    // The preview uses transform: translate(-50%, -50%) to center the text box at position
+    const x = (animated.position.x / 100) * this.width;
+    const y = (animated.position.y / 100) * this.height;
+
+    ctx.save();
+
+    // Apply keyframe animations (opacity, scale, rotation)
+    ctx.globalAlpha = animated.opacity;
+    ctx.translate(x, y);
+    ctx.scale(animated.scale, animated.scale);
+    ctx.rotate((animated.rotation * Math.PI) / 180);
+
+    // Use animated fontSize and color, scaled to match preview proportion
+    // Preview: fontSize in ~420px container
+    // Export: scale fontSize proportionally to canvas size
+    const baseFontSize = animated.fontSize ?? clip.fontSize;
+    const fontSize = baseFontSize * scaleFactor;
+    const color = animated.color ?? clip.color;
+    const lineHeight = fontSize * 1.2;
+
+    // Font setup
+    ctx.font = `${clip.fontWeight === "bold" ? "bold " : ""}${fontSize}px ${clip.fontFamily}, sans-serif`;
+    ctx.fillStyle = color;
+
+    // Use the clip's actual text alignment for multi-line text
+    ctx.textAlign = clip.textAlign;
+    ctx.textBaseline = "middle";
+
+    // Scale maxWidth to match preview proportion (if set)
+    const scaledMaxWidth = clip.maxWidth ? clip.maxWidth * scaleFactor : undefined;
+
+    // Wrap text into lines based on scaled maxWidth
+    const lines = this.wrapText(ctx, clip.content, scaledMaxWidth);
+    const totalHeight = lines.length * lineHeight;
+
+    // Measure max line width for alignment and background
+    let maxLineWidth = 0;
+    for (const line of lines) {
+      const metrics = ctx.measureText(line);
+      maxLineWidth = Math.max(maxLineWidth, metrics.width);
+    }
+
+    // Calculate the horizontal offset for the anchor point based on alignment
+    // The preview centers the text box at the position using transform: translate(-50%, -50%)
+    // So the anchor point (0,0) corresponds to the center of the text box.
+
+    let anchorOffsetX = 0;
+
+    // Effective width is either the scaled maxWidth or the actual content width
+    const effectiveWidth = scaledMaxWidth ?? maxLineWidth;
+
+    switch (clip.textAlign) {
+      case "left":
+        // Align left edge of text box to left edge of content
+        // Box center is 0. Left edge is -width/2.
+        anchorOffsetX = -effectiveWidth / 2;
+        break;
+      case "right":
+        // Align right edge of text box to right edge of content
+        // Box center is 0. Right edge is width/2.
+        anchorOffsetX = effectiveWidth / 2;
+        break;
+      case "center":
+      default:
+        anchorOffsetX = 0;
+        break;
+    }
+
+    // Background (if set)
+    if (clip.backgroundColor) {
+      // Scale padding to match preview proportion
+      const padding = 8 * scaleFactor;
+      // Use effective width for background too
+      const bgW = effectiveWidth + padding * 2;
+      const bgH = totalHeight + padding;
+
+      ctx.fillStyle = clip.backgroundColor;
+      // Center the background around origin
+      ctx.fillRect(-bgW / 2, -totalHeight / 2 - padding / 2, bgW, bgH);
+      ctx.fillStyle = color;
+    }
+
+    // Shadow (when no background) - matches TextOverlay.tsx, scaled proportionally
+    if (!clip.backgroundColor) {
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 4 * scaleFactor;
+      ctx.shadowOffsetY = 2 * scaleFactor;
+    }
+
+    // Draw each line, vertically centered around origin
+    const startY = -totalHeight / 2 + lineHeight / 2;
+    for (let i = 0; i < lines.length; i++) {
+      const lineY = startY + i * lineHeight;
+      ctx.fillText(lines[i], anchorOffsetX, lineY);
+    }
+
+    ctx.restore();
   }
 
   /**
@@ -316,99 +526,6 @@ export class RenderEngine {
         vid.currentTime = time;
       }
     });
-  }
-
-  private renderStickerLayer(time: number): void {
-    const stickerClips = this.getActiveClips<StickerClip>("sticker", time);
-
-    // Calculate max sticker dimension to match preview's visual proportion
-    // Preview: 300px sticker in ~420px container = 71.4% of container width
-    // Export: Scale proportionally to maintain same visual ratio
-    // For 1080x1920 export: 300 * (1080/420) = 771px
-    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
-
-    for (const clip of stickerClips) {
-      // Get animated properties for keyframe animations
-      const animated = getAnimatedPropertiesAtTime(clip, time);
-
-      const ctx = this.ctx;
-      ctx.save();
-
-      // Position (use animated position, percentage to pixels, centered)
-      const x = (animated.position.x / 100) * this.width;
-      const y = (animated.position.y / 100) * this.height;
-
-      ctx.translate(x, y);
-      ctx.rotate((animated.rotation * Math.PI) / 180);
-      ctx.scale(animated.scale, animated.scale);
-      ctx.globalAlpha = animated.opacity;
-
-      // Check if this is an animated GIF with extracted frames
-      const gifData = this.resources!.gifFrames.get(clip.id);
-      if (gifData && clip.isAnimated) {
-        // Calculate display dimensions to match preview proportions
-        // Preview uses max-w-[300px] max-h-[300px] CSS constraint
-        // First, calculate base size in "preview space" (constrained to 300px max)
-        let baseW = gifData.width;
-        let baseH = gifData.height;
-        if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
-          const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
-          baseW *= constrainScale;
-          baseH *= constrainScale;
-        }
-        // Then scale to export dimensions
-        const w = baseW * scaleFactor;
-        const h = baseH * scaleFactor;
-
-        // Calculate which frame to show based on clip-relative time
-        const clipTimeMs = (time - clip.startTime) * 1000;
-        const loopTime = clipTimeMs >= 0 ? clipTimeMs % gifData.totalDuration : 0;
-
-        // Find the frame index based on accumulated delays
-        let frameIndex = 0;
-        let accumulated = 0;
-        for (let i = 0; i < gifData.delays.length; i++) {
-          accumulated += gifData.delays[i];
-          if (loopTime < accumulated) {
-            frameIndex = i;
-            break;
-          }
-        }
-
-        // Draw the GIF frame at constrained dimensions
-        const frameData = gifData.frames[frameIndex];
-        if (frameData) {
-          // Create a temp canvas to convert ImageData to drawable image
-          const tempCanvas = document.createElement("canvas");
-          tempCanvas.width = gifData.width;
-          tempCanvas.height = gifData.height;
-          const tempCtx = tempCanvas.getContext("2d");
-          if (tempCtx) {
-            tempCtx.putImageData(frameData, 0, 0);
-            ctx.drawImage(tempCanvas, -w / 2, -h / 2, w, h);
-          }
-        }
-      } else {
-        // Static image with proportional scaling to match preview
-        const img = this.resources!.stickerImages.get(clip.id);
-        if (img) {
-          // Calculate base size in "preview space" (constrained to 300px max)
-          let baseW = img.width;
-          let baseH = img.height;
-          if (baseW > STICKER_PREVIEW_MAX_SIZE || baseH > STICKER_PREVIEW_MAX_SIZE) {
-            const constrainScale = Math.min(STICKER_PREVIEW_MAX_SIZE / baseW, STICKER_PREVIEW_MAX_SIZE / baseH);
-            baseW *= constrainScale;
-            baseH *= constrainScale;
-          }
-          // Scale to export dimensions
-          const w = baseW * scaleFactor;
-          const h = baseH * scaleFactor;
-          ctx.drawImage(img, -w / 2, -h / 2, w, h);
-        }
-      }
-
-      ctx.restore();
-    }
   }
 
   /**
@@ -460,119 +577,6 @@ export class RenderEngine {
     }
 
     return lines.length > 0 ? lines : [""];
-  }
-
-  private renderTextLayer(time: number): void {
-    const textClips = this.getActiveClips<TextClip>("text", time);
-
-    // Scale factor to match preview's visual proportion (same as stickers)
-    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
-
-    for (const clip of textClips) {
-      // Get animated properties for keyframe animations
-      const animated = getAnimatedPropertiesAtTime(clip, time);
-
-      const ctx = this.ctx;
-
-      // Position (use animated position, percentage to pixels)
-      // The preview uses transform: translate(-50%, -50%) to center the text box at position
-      const x = (animated.position.x / 100) * this.width;
-      const y = (animated.position.y / 100) * this.height;
-
-      ctx.save();
-
-      // Apply keyframe animations (opacity, scale, rotation)
-      ctx.globalAlpha = animated.opacity;
-      ctx.translate(x, y);
-      ctx.scale(animated.scale, animated.scale);
-      ctx.rotate((animated.rotation * Math.PI) / 180);
-
-      // Use animated fontSize and color, scaled to match preview proportion
-      // Preview: fontSize in ~420px container
-      // Export: scale fontSize proportionally to canvas size
-      const baseFontSize = animated.fontSize ?? clip.fontSize;
-      const fontSize = baseFontSize * scaleFactor;
-      const color = animated.color ?? clip.color;
-      const lineHeight = fontSize * 1.2;
-
-      // Font setup
-      ctx.font = `${clip.fontWeight === "bold" ? "bold " : ""}${fontSize}px ${clip.fontFamily}, sans-serif`;
-      ctx.fillStyle = color;
-
-      // Use the clip's actual text alignment for multi-line text
-      ctx.textAlign = clip.textAlign;
-      ctx.textBaseline = "middle";
-
-      // Scale maxWidth to match preview proportion (if set)
-      const scaledMaxWidth = clip.maxWidth ? clip.maxWidth * scaleFactor : undefined;
-
-      // Wrap text into lines based on scaled maxWidth
-      const lines = this.wrapText(ctx, clip.content, scaledMaxWidth);
-      const totalHeight = lines.length * lineHeight;
-
-      // Measure max line width for alignment and background
-      let maxLineWidth = 0;
-      for (const line of lines) {
-        const metrics = ctx.measureText(line);
-        maxLineWidth = Math.max(maxLineWidth, metrics.width);
-      }
-
-      // Calculate the horizontal offset for the anchor point based on alignment
-      // The preview centers the text box at the position using transform: translate(-50%, -50%)
-      // So the anchor point (0,0) corresponds to the center of the text box.
-
-      let anchorOffsetX = 0;
-
-      // Effective width is either the scaled maxWidth or the actual content width
-      const effectiveWidth = scaledMaxWidth ?? maxLineWidth;
-
-      switch (clip.textAlign) {
-        case "left":
-          // Align left edge of text box to left edge of content
-          // Box center is 0. Left edge is -width/2.
-          anchorOffsetX = -effectiveWidth / 2;
-          break;
-        case "right":
-          // Align right edge of text box to right edge of content
-          // Box center is 0. Right edge is width/2.
-          anchorOffsetX = effectiveWidth / 2;
-          break;
-        case "center":
-        default:
-          anchorOffsetX = 0;
-          break;
-      }
-
-      // Background (if set)
-      if (clip.backgroundColor) {
-        // Scale padding to match preview proportion
-        const padding = 8 * scaleFactor;
-        // Use effective width for background too
-        const bgW = effectiveWidth + padding * 2;
-        const bgH = totalHeight + padding;
-
-        ctx.fillStyle = clip.backgroundColor;
-        // Center the background around origin
-        ctx.fillRect(-bgW / 2, -totalHeight / 2 - padding / 2, bgW, bgH);
-        ctx.fillStyle = color;
-      }
-
-      // Shadow (when no background) - matches TextOverlay.tsx, scaled proportionally
-      if (!clip.backgroundColor) {
-        ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 4 * scaleFactor;
-        ctx.shadowOffsetY = 2 * scaleFactor;
-      }
-
-      // Draw each line, vertically centered around origin
-      const startY = -totalHeight / 2 + lineHeight / 2;
-      for (let i = 0; i < lines.length; i++) {
-        const lineY = startY + i * lineHeight;
-        ctx.fillText(lines[i], anchorOffsetX, lineY);
-      }
-
-      ctx.restore();
-    }
   }
 
   // ==========================================================================
