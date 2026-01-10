@@ -185,8 +185,27 @@ The app uses a unified export system (in `src/utils/export/`) with a hybrid engi
 -   Renders all layers (video, text, stickers) to HTML Canvas.
 -   Handles frame-accurate video seeking with `requestVideoFrameCallback`.
 -   Ensures WYSIWYG output by using the same logic for preview and export.
+-   **Proportional Scaling**: Applies a scale factor to match preview's visual proportions:
+    -   Preview uses fixed constraints (300px max for stickers, absolute font sizes) in a ~420px container
+    -   Export scales these values proportionally: `scaleFactor = canvasSize / 420`
+    -   For 1080p export: sticker max = 771px, 24px font becomes ~62px
+    -   This ensures elements maintain the same relative size across all export resolutions
 
-**2. Export Strategies:**
+**2. Proportional Scaling System**:
+-   **Reference Dimensions**: Uses 420px as the reference preview container width
+-   **Scale Factor Calculation**: `scaleFactor = min(canvasWidth, canvasHeight) / 420`
+-   **Sticker Scaling** (`renderStickerLayer`):
+    -   Preview constraint: `max-w-[300px] max-h-[300px]` CSS
+    -   Export constraint: `300 * scaleFactor` pixels
+    -   Maintains same visual proportion across resolutions
+-   **Text Scaling** (`renderTextLayer`):
+    -   Font size: `baseFontSize * scaleFactor`
+    -   Max width: `baseMaxWidth * scaleFactor`
+    -   Padding: `basePadding * scaleFactor`
+    -   Shadow: `blur/offset * scaleFactor`
+-   **Position & Transforms**: Percentage-based (0-100%), inherently proportional
+
+**3. Export Strategies:**
 -   **Hardware Accelerated (WebCodecs)** (`webcodecs.ts`) *Primary*:
     -   Uses browser's native `VideoEncoder` for GPU-accelerated encoding.
     -   Significantly faster (up to 10x) on supported browsers.
@@ -196,7 +215,7 @@ The app uses a unified export system (in `src/utils/export/`) with a hybrid engi
     -   **CFR Enforcement**: Uses `-vsync cfr` flag for constant framerate.
     -   Robust fallback for browsers without WebCodecs support.
 
-**3. Routing Logic:**
+**4. Routing Logic:**
 -   User preference is handled via `useHardwareAcceleration` in `ExportSettingsModal`.
 -   `App.tsx` routes the request to the appropriate exporter based on settings and browser support.
 
@@ -397,6 +416,8 @@ useEffect(() => {
 -   **State**: Always add new global "truth" to `timelineStore`. Avoid local state for data that needs to persist or be shared.
 -   **Optimization**: Use granular selectors (e.g., `useTimelineStore(state => state.fps)`) to prevent full re-renders of the Timeline on every frame update.
 -   **Export**: If modifying export logic, ensure changes are mirrored in both `ffmpegExporter` and `videoExporter` if possible, and ALWAYS verify frame synchronization.
+    -   **Scaling**: When adding new visual elements (text, stickers, etc.), apply the `scaleFactor` to all size-related properties to maintain WYSIWYG consistency.
+    -   **Reference**: The 420px reference container width is calibrated for typical preview viewports; adjust if preview UI changes significantly.
 -   **Undo/Redo**: When adding new editing features, always call `saveToHistory()` before state mutations. For continuous inputs (sliders, text fields), use `onMouseUp`/`onBlur` to avoid flooding the history stack.
 
 ## 7. Business Logic & Mechanics

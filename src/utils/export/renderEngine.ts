@@ -328,17 +328,6 @@ export class RenderEngine {
     const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
     const maxStickerDimension = STICKER_PREVIEW_MAX_SIZE * scaleFactor;
 
-    // Debug: log first frame only
-    if (time < 0.1) {
-      console.log('[RenderEngine] Sticker rendering debug:', {
-        canvasWidth: this.width,
-        canvasHeight: this.height,
-        scaleFactor,
-        maxStickerDimension,
-        stickerCount: stickerClips.length,
-      });
-    }
-
     for (const clip of stickerClips) {
       // Get animated properties for keyframe animations
       const animated = getAnimatedPropertiesAtTime(clip, time);
@@ -349,17 +338,6 @@ export class RenderEngine {
       // Position (use animated position, percentage to pixels, centered)
       const x = (animated.position.x / 100) * this.width;
       const y = (animated.position.y / 100) * this.height;
-
-      // Debug: log sticker details for first frame
-      if (time < 0.1) {
-        console.log('[RenderEngine] Sticker:', {
-          id: clip.id.slice(0, 8),
-          positionPercent: animated.position,
-          positionPixels: { x, y },
-          scale: animated.scale,
-          rotation: animated.rotation,
-        });
-      }
 
       ctx.translate(x, y);
       ctx.rotate((animated.rotation * Math.PI) / 180);
@@ -479,6 +457,9 @@ export class RenderEngine {
   private renderTextLayer(time: number): void {
     const textClips = this.getActiveClips<TextClip>("text", time);
 
+    // Scale factor to match preview's visual proportion (same as stickers)
+    const scaleFactor = Math.min(this.width, this.height) / STICKER_PREVIEW_CONTAINER_WIDTH;
+
     for (const clip of textClips) {
       // Get animated properties for keyframe animations
       const animated = getAnimatedPropertiesAtTime(clip, time);
@@ -498,8 +479,11 @@ export class RenderEngine {
       ctx.scale(animated.scale, animated.scale);
       ctx.rotate((animated.rotation * Math.PI) / 180);
 
-      // Use animated fontSize and color
-      const fontSize = animated.fontSize ?? clip.fontSize;
+      // Use animated fontSize and color, scaled to match preview proportion
+      // Preview: fontSize in ~420px container
+      // Export: scale fontSize proportionally to canvas size
+      const baseFontSize = animated.fontSize ?? clip.fontSize;
+      const fontSize = baseFontSize * scaleFactor;
       const color = animated.color ?? clip.color;
       const lineHeight = fontSize * 1.2;
 
@@ -511,8 +495,11 @@ export class RenderEngine {
       ctx.textAlign = clip.textAlign;
       ctx.textBaseline = "middle";
 
-      // Wrap text into lines based on maxWidth
-      const lines = this.wrapText(ctx, clip.content, clip.maxWidth ?? undefined);
+      // Scale maxWidth to match preview proportion (if set)
+      const scaledMaxWidth = clip.maxWidth ? clip.maxWidth * scaleFactor : undefined;
+
+      // Wrap text into lines based on scaled maxWidth
+      const lines = this.wrapText(ctx, clip.content, scaledMaxWidth);
       const totalHeight = lines.length * lineHeight;
 
       // Measure max line width for alignment and background
@@ -528,8 +515,8 @@ export class RenderEngine {
 
       let anchorOffsetX = 0;
 
-      // Effective width is either the explicit maxWidth or the actual content width
-      const effectiveWidth = clip.maxWidth ?? maxLineWidth;
+      // Effective width is either the scaled maxWidth or the actual content width
+      const effectiveWidth = scaledMaxWidth ?? maxLineWidth;
 
       switch (clip.textAlign) {
         case "left":
@@ -550,7 +537,8 @@ export class RenderEngine {
 
       // Background (if set)
       if (clip.backgroundColor) {
-        const padding = 8;
+        // Scale padding to match preview proportion
+        const padding = 8 * scaleFactor;
         // Use effective width for background too
         const bgW = effectiveWidth + padding * 2;
         const bgH = totalHeight + padding;
@@ -561,11 +549,11 @@ export class RenderEngine {
         ctx.fillStyle = color;
       }
 
-      // Shadow (when no background) - matches TextOverlay.tsx
+      // Shadow (when no background) - matches TextOverlay.tsx, scaled proportionally
       if (!clip.backgroundColor) {
         ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetY = 2;
+        ctx.shadowBlur = 4 * scaleFactor;
+        ctx.shadowOffsetY = 2 * scaleFactor;
       }
 
       // Draw each line, vertically centered around origin
